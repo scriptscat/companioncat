@@ -1,0 +1,8 @@
+/* A hostile-ish host page: a small root font size and global resets the shadow root must ignore (R1.2). */
+html { font-size: 10px; }
+body { font: 1.6rem/1.6 Georgia, serif; margin: 0 auto; max-width: 720px; padding: 4rem 2rem; color: #222; background: #fbfaf7; }
+* { box-sizing: content-box; }
+button { all: unset; }
+p { margin: 0 0 1.6rem; }
+form { display: grid; gap: 1rem; margin: 2rem 0; }
+#editable { border: 1px dashed #999; padding: 1rem; }

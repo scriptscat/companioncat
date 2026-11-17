@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>陪伴猫 E2E test page</title>
+    <link rel="stylesheet" href="/page.css" />
+  </head>
+  <body>
+    <main>
+      <h1>The event loop, explained</h1>
+      <p id="en">JavaScript runs one task at a time. When the call stack is empty, the event loop picks the next task from the queue.</p>
+      <p id="en2">Promises schedule microtasks, which always run before the next macrotask begins.</p>
+      <p id="en3">Rendering happens between tasks, so long tasks make the page feel slow.</p>
+      <p id="en4">A timer callback never runs earlier than its delay, only later.</p>
+      <p id="zh" lang="zh-CN">事件循环每次只处理一个任务，调用栈清空后才会取下一个任务。</p>
+      <form id="form">
+        <label>Input <input id="input" value="Selected text inside an input field" size="40" /></label>
+        <label>Textarea <textarea id="textarea" rows="2" cols="40">Selected text inside a textarea</textarea></label>
+      </form>
+      <div id="editable" contenteditable="true">Selected text inside a contenteditable region</div>
+    </main>
+  </body>
+</html>
