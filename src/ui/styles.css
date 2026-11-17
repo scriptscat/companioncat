@@ -1,0 +1,255 @@
+@import "tailwindcss" source(none);
+@source "../";
+@source not "../**/*.test.*";
+
+/* Everything lives in the shadow root, so dark: keys off the shadow host's class. */
+@custom-variant dark {
+  :host(.dark) & {
+    @slot;
+  }
+}
+
+/*
+  陪伴猫 设计令牌 v4 ——「猫毛色」（原型 v5 styles.css）
+  白毛 fur：所有承载内容的表面
+  橘 ginger：主操作、开启状态、需要注意的提示（橘猫的毛 / 三花的橘色斑块）
+  黑斑 patch：正文墨色、当前选中的导航（三花的黑色斑块），也是卡通描边色
+  鼻头粉 nose：只在猫自己身上出现
+  底色是中性略暖的浅灰，不是奶油色
+  令牌挂在 Shadow DOM 的 :host 上；所有尺寸用 px，网页的 html { font-size } 不影响陪伴猫（R1.2）。
+*/
+:host {
+  /* The page's inherited styles stop at the host; !important in a shadow tree beats the page's !important. */
+  all: initial !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  z-index: 2147483647 !important;
+
+  --paper: #f3f2ef;
+  --fur: #ffffff;
+  --sunken: #eceae6;
+  --line: #e3e0da;
+  --line-strong: #cdc9c1;
+
+  --ink: #2a2421;
+  --ink-2: #5d5550;
+  --ink-3: #7a726c;
+  --outline: #2a2421;
+
+  --ginger: #f39a2e;
+  --ginger-hover: #e98a17;
+  --on-ginger: #2a2421;
+  --ginger-ink: #a5540a;
+  --ginger-soft: #fdebd3;
+
+  --patch: #2a2421;
+  --on-patch: #ffffff;
+
+  --nose: #f2a3ab;
+  --leaf: #2d8655;
+  --leaf-soft: #e0f1e6;
+  --berry: #c23849;
+  --berry-soft: #fbe4e6;
+
+  --scrim: rgb(42 36 33 / 0.38);
+  --lift: 0 16px 40px -14px rgb(42 36 33 / 0.35);
+}
+
+:host(.dark) {
+  --paper: #1a1715;
+  --fur: #24201d;
+  --sunken: #2d2926;
+  --line: #36312d;
+  --line-strong: #4a4440;
+
+  --ink: #f1ece7;
+  --ink-2: #c3bbb3;
+  --ink-3: #9b938b;
+  --outline: #0b0a09;
+
+  --ginger: #f5a64b;
+  --ginger-hover: #f8b465;
+  --on-ginger: #1f1a17;
+  --ginger-ink: #f7b66c;
+  --ginger-soft: #3b2b19;
+
+  --patch: #f1ece7;
+  --on-patch: #1f1a17;
+
+  --nose: #e98e98;
+  --leaf: #6cc993;
+  --leaf-soft: #1d3326;
+  --berry: #f0808d;
+  --berry-soft: #3c1f23;
+
+  --scrim: rgb(0 0 0 / 0.55);
+  --lift: 0 18px 44px -12px rgb(0 0 0 / 0.65);
+}
+
+/* Tailwind's rem-based scales, restated in px (1rem = 16px) so no utility depends on the page's root font size. */
+@theme {
+  --spacing: 4px;
+
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+
+  --container-3xs: 256px;
+  --container-2xs: 288px;
+  --container-xs: 320px;
+  --container-sm: 384px;
+  --container-md: 448px;
+  --container-lg: 512px;
+  --container-xl: 576px;
+  --container-2xl: 672px;
+  --container-3xl: 768px;
+  --container-4xl: 896px;
+  --container-5xl: 1024px;
+  --container-6xl: 1152px;
+  --container-7xl: 1280px;
+
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-lg: 18px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+  --text-3xl: 30px;
+  --text-4xl: 36px;
+  --text-5xl: 48px;
+  --text-6xl: 60px;
+  --text-7xl: 72px;
+  --text-8xl: 96px;
+  --text-9xl: 128px;
+
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 24px;
+  --radius-4xl: 32px;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-fur: var(--fur);
+  --color-sunken: var(--sunken);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-outline: var(--outline);
+  --color-ginger: var(--ginger);
+  --color-ginger-hover: var(--ginger-hover);
+  --color-on-ginger: var(--on-ginger);
+  --color-ginger-ink: var(--ginger-ink);
+  --color-ginger-soft: var(--ginger-soft);
+  --color-patch: var(--patch);
+  --color-on-patch: var(--on-patch);
+  --color-nose: var(--nose);
+  --color-leaf: var(--leaf);
+  --color-leaf-soft: var(--leaf-soft);
+  --color-berry: var(--berry);
+  --color-berry-soft: var(--berry-soft);
+  --color-scrim: var(--scrim);
+  --shadow-lift: var(--lift);
+
+  --font-ui: ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC", "MiSans",
+    "Microsoft YaHei", sans-serif;
+  --font-read: "Songti SC", "Noto Serif SC", "Source Han Serif SC", "Noto Serif CJK SC", ui-rounded, -apple-system, "PingFang SC",
+    "Microsoft YaHei", sans-serif;
+  --font-code: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+@layer base {
+  /* 产品根节点：每个浮在网页上的块（以及弹出层）都带 .cc */
+  .cc {
+    font-family: var(--font-ui);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .cc :focus-visible,
+  .cc:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+  .cc button {
+    cursor: pointer;
+  }
+}
+
+/* 浮在网页上的东西：卡通描边 + 柔和投影，和猫的线稿一致 */
+@utility sticker {
+  border: 1.5px solid var(--outline);
+  box-shadow: var(--lift);
+}
+
+/* Transform only: a fade would let the page show through the window and card while it plays (R13.4). */
+@keyframes cc-pop {
+  from {
+    transform: translateY(6px) scale(0.97);
+  }
+}
+.cc-pop {
+  animation: cc-pop 170ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+/* 唯一的常驻动效：睡着的猫在呼吸 */
+@keyframes cc-breathe {
+  50% {
+    transform: scale(1.03, 1.05);
+  }
+}
+.cc-breathe {
+  animation: cc-breathe 4.2s ease-in-out infinite;
+  transform-origin: 50% 90%;
+}
+
+@keyframes cc-dot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+.cc-dots > i {
+  animation: cc-dot 1.2s infinite;
+}
+.cc-dots > i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.cc-dots > i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.cc-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cc-pop,
+  .cc-breathe,
+  .cc-dots > i {
+    animation: none !important;
+  }
+  /* R13.3: no motion at all — hover lifts, the switch thumb and the paw scale too */
+  *,
+  ::before,
+  ::after {
+    transition: none !important;
+  }
+}
