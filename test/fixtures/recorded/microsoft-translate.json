@@ -1,0 +1,101 @@
+{
+  "_source": "Recorded from www.bing.com on 2026-11-17 without cookies or a key. The translator page is trimmed to the two inline scripts the provider reads (IG, params_AbusePreventionHelper); the IG/key/token are anonymous page values that expired an hour after recording. Exchanges: page, auto->zh-Hans (joined texts), en->ja, en->ja with a wrong token (statusCode 205), en->xx (statusCode 400). The last exchange is a real 401 that Bing returns when the POST carries no browser User-Agent (recorded against a fresh page, URL rewritten to the first IG).",
+  "exchanges": [
+    {
+      "method": "GET",
+      "url": "https://www.bing.com/translator",
+      "status": 200,
+      "headers": {
+        "content-type": "text/html; charset=utf-8"
+      },
+      "body": "<!DOCTYPE html><html dir=\"ltr\" lang=\"en\" xml:lang=\"en\" xmlns=\"http://www.w3.org/1999/xhtml\" xmlns:Web=\"http://schemas.live.com/Web/\"><script type=\"text/javascript\" nonce=\"3seZtf0gK4ZMRnmdjUM1AtLpoZvZpgv5p6vqZmeMtEc=\" >\"use strict\";//<![CDATA[\r\nwindow.si_ST=new Date\r\n//]]></script><head>\n<!-- trimmed: only the two inline scripts the provider reads are kept -->\n<script>window._G={Mkt:\"en-US\",RevIpCC:\"us\",RTL:false,Ver:\"47\",IG:\"499CA6CF7EF54C87AB09328325CCE329\"};</script>\n<script>var params_AbusePreventionHelper = [1794880939726,\"T7zGFZuLvBM6bmm4rjL2fy0DiWPNjo20\",3600000];</script>\n</head><body></body></html>"
+    },
+    {
+      "method": "POST",
+      "url": "https://www.bing.com/ttranslatev3?isVertical=1&IG=499CA6CF7EF54C87AB09328325CCE329&IID=translator.5028",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "json": [
+        {
+          "translations": [
+            {
+              "text": "你好，世界\n早上好",
+              "to": "zh-Hans",
+              "transliteration": {
+                "text": "Nǐ hǎo, shìjiè\nZǎoshang hǎo",
+                "script": "Latn"
+              }
+            }
+          ],
+          "usedLLM": true,
+          "detectedLanguage": {
+            "language": "en"
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "url": "https://www.bing.com/ttranslatev3?isVertical=1&IG=499CA6CF7EF54C87AB09328325CCE329&IID=translator.5028",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "json": [
+        {
+          "translations": [
+            {
+              "text": "おはようございます",
+              "to": "ja",
+              "transliteration": {
+                "text": "O-wa you gozaimasu",
+                "script": "Latn"
+              }
+            }
+          ],
+          "usedLLM": true,
+          "detectedLanguage": {
+            "language": "en"
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "url": "https://www.bing.com/ttranslatev3?isVertical=1&IG=499CA6CF7EF54C87AB09328325CCE329&IID=translator.5028",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "json": {
+        "statusCode": 205,
+        "errorMessage": ""
+      }
+    },
+    {
+      "method": "POST",
+      "url": "https://www.bing.com/ttranslatev3?isVertical=1&IG=499CA6CF7EF54C87AB09328325CCE329&IID=translator.5028",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "json": {
+        "statusCode": 400,
+        "errorMessage": ""
+      }
+    },
+    {
+      "method": "POST",
+      "url": "https://www.bing.com/ttranslatev3?isVertical=1&IG=499CA6CF7EF54C87AB09328325CCE329&IID=translator.5028",
+      "status": 401,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "json": {
+        "ShowCaptcha": false
+      }
+    }
+  ]
+}

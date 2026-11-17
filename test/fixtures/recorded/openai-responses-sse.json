@@ -1,0 +1,14 @@
+{
+  "_source": "Responses API streaming format (OpenAI docs); content is synthetic, no key involved.",
+  "exchanges": [
+    {
+      "method": "POST",
+      "url": "https://api.openai.com/v1/responses",
+      "status": 200,
+      "headers": {
+        "content-type": "text/event-stream; charset=utf-8"
+      },
+      "body": "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_0001\",\"status\":\"in_progress\",\"output\":[]}}\n\nevent: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":1,\"output_index\":0,\"item\":{\"id\":\"msg_0001\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[]}}\n\nevent: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":2,\"item_id\":\"msg_0001\",\"output_index\":0,\"content_index\":0,\"delta\":\"我是\"}\n\nevent: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":3,\"item_id\":\"msg_0001\",\"output_index\":0,\"content_index\":0,\"delta\":\" GPT\"}\n\nevent: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":4,\"item_id\":\"msg_0001\",\"output_index\":0,\"content_index\":0,\"delta\":\"。\"}\n\nevent: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"sequence_number\":5,\"item_id\":\"msg_0001\",\"output_index\":0,\"content_index\":0,\"text\":\"我是 GPT。\"}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":6,\"response\":{\"id\":\"resp_0001\",\"status\":\"completed\",\"usage\":{\"input_tokens\":12,\"output_tokens\":6,\"total_tokens\":18}}}\n\n"
+    }
+  ]
+}

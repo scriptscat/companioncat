@@ -1,0 +1,14 @@
+{
+  "_source": "Chat Completions streaming format; a fenced JSON reply for llm-choose. Synthetic content.",
+  "exchanges": [
+    {
+      "method": "POST",
+      "url": "https://api.deepseek.com/v1/chat/completions",
+      "status": 200,
+      "headers": {
+        "content-type": "text/event-stream; charset=utf-8"
+      },
+      "body": "data: {\"id\":\"chatcmpl-0001\",\"object\":\"chat.completion.chunk\",\"created\":1763280000,\"model\":\"deepseek-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"\"},\"logprobs\":null,\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-0001\",\"object\":\"chat.completion.chunk\",\"created\":1763280000,\"model\":\"deepseek-chat\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"```json\\n{\\\"choice\\\": \\\"yes\\\", \"},\"logprobs\":null,\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-0001\",\"object\":\"chat.completion.chunk\",\"created\":1763280000,\"model\":\"deepseek-chat\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"\\\"confidence\\\": 0.92}\\n```\"},\"logprobs\":null,\"finish_reason\":null}]}\n\ndata: {\"id\":\"chatcmpl-0001\",\"object\":\"chat.completion.chunk\",\"created\":1763280000,\"model\":\"deepseek-chat\",\"choices\":[{\"index\":0,\"delta\":{},\"logprobs\":null,\"finish_reason\":\"stop\"}]}\n\n: keep-alive\n\ndata: [DONE]\n\n"
+    }
+  ]
+}

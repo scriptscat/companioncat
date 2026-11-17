@@ -1,0 +1,14 @@
+{
+  "_source": "Recorded from api.typesafe.ai/v1/systemone on 2026-11-16 with a choice question (key removed; responses never contain it).",
+  "exchanges": [
+    {
+      "method": "POST",
+      "url": "https://api.typesafe.ai/v1/systemone",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": "{\"model\":\"jev-1.14.0\",\"answers\":{\"choice\":{\"type\":\"choice\",\"choice\":\"yes\",\"confidence\":1.0,\"probabilities\":{\"yes\":1.0,\"no\":0.0}}},\"usage\":{\"input_tokens\":337,\"output_tokens\":31}}"
+    }
+  ]
+}

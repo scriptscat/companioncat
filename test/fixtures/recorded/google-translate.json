@@ -1,0 +1,23 @@
+{
+  "_source": "Recorded from translate.googleapis.com on 2026-11-16 (no key involved).",
+  "exchanges": [
+    {
+      "method": "GET",
+      "url": "https://translate.googleapis.com/translate_a/single?client=gtx&dt=t&sl=auto&tl=zh-CN&q=Hello%2C%20world%0AGood%20morning",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": "[[[\"你好，世界\\n\",\"Hello, world\\n\",null,null,3,null,null,[[]],[[[\"6ffafab0da7e640be86ac09d0d5e539c\",\"en_zh_2023q1.md\"],true]]],[\"早上好\",\"Good morning\",null,null,3,null,null,[[]],[[[\"6ffafab0da7e640be86ac09d0d5e539c\",\"en_zh_2023q1.md\"]]]]],null,\"en\",null,null,null,0.96721685,[],[[\"en\"],null,[0.96721685],[\"en\"]]]"
+    },
+    {
+      "method": "GET",
+      "url": "https://translate.googleapis.com/translate_a/single?client=gtx&dt=t&sl=en&tl=ja&q=Good%20morning",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "body": "[[[\"おはよう\",\"Good morning\",null,null,10]],null,\"en\",null,null,null,null,[]]"
+    }
+  ]
+}
