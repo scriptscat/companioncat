@@ -1,3 +1,5 @@
 .dev-kit/
 node_modules/
 dist/
+e2e/artifacts/
+e2e/scratch/
