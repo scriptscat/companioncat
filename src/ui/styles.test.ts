@@ -52,6 +52,10 @@ describe("styles.css (R1.2, R1.7)", () => {
     expect(css).toMatch(/--font-ui:\s*ui-rounded/);
   });
 
+  it("pads a line of text sitting directly in a card body, so the rounded corner does not clip it (R5.5 footer)", () => {
+    expect(css).toMatch(/\[data-part="body"\]\s*>\s*\[data-part="text"\]\s*\{[^}]*padding:\s*8px 16px 14px/);
+  });
+
   it("stops the breathing and pop animations under prefers-reduced-motion (R1.3, R13.3)", () => {
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\)\s*\{[^}]*\.cc-breathe[^}]*animation:\s*none !important/);
   });

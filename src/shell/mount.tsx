@@ -3,7 +3,8 @@ import { createRoot } from "react-dom/client";
 import STYLES from "../ui/styles.css?inline";
 import { adoptStyles, shadowSafe } from "../ui/css";
 import { deepActive } from "../ui/dom";
-import type { Registration } from "./registry";
+import { matchHotkey } from "../core/stores/settings";
+import { createCommandRegistry, type Registration } from "./registry";
 import type { ShellServices } from "./services";
 import { Shell } from "./Shell";
 import { createUiStore } from "./store";
@@ -21,6 +22,8 @@ export interface MountOptions {
   /** Where the shadow host goes; defaults to <html> (survives pages that replace <body>). */
   target?: Element;
   version?: string;
+  /** Adds a ScriptCat menu item; called once per registered command (boot passes GM_registerMenuCommand). */
+  registerMenu?: (title: string, run: () => void) => void;
 }
 
 export interface ShellHandle {
@@ -30,8 +33,15 @@ export interface ShellHandle {
   openSettings(to?: string): void;
   closeSettings(): void;
   /** The cat is awake while any reason is on. */
-  setAwake(reason: string, on: boolean): void;
+  setAwake(reason: string, on: boolean, label?: string): void;
   unmount(): void;
+}
+
+/** True while the key goes to a text field or an editable element (also inside open shadow roots). */
+function isTyping(e: KeyboardEvent) {
+  const t = (e.composedPath()[0] ?? e.target) as Element | null;
+  if (!t || typeof t.closest !== "function") return false;
+  return !!t.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])') || (t as HTMLElement).isContentEditable === true;
 }
 
 /** Renders the whole UI inside one shadow root (R1.2) and starts the registered feature runtimes. */
@@ -59,6 +69,19 @@ export function mount(o: MountOptions): ShellHandle {
     store.set({ settings: to ?? "engines", bubble: false });
   };
 
+  const commands = createCommandRegistry({
+    onMenu: o.registerMenu,
+    onBlocked: (message) => void store.toast({ text: message }),
+  });
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.repeat || e.defaultPrevented || isTyping(e)) return;
+    const hit = commands.list().find((c) => c.hotkey && matchHotkey(c.hotkey, e));
+    if (!hit) return;
+    e.preventDefault();
+    commands.run(hit.id);
+  };
+  doc.addEventListener("keydown", onKeyDown, true);
+
   const reactRoot = createRoot(app);
   flushSync(() =>
     reactRoot.render(
@@ -66,6 +89,7 @@ export function mount(o: MountOptions): ShellHandle {
         store={store}
         services={o.services}
         registrations={registrations}
+        commands={commands}
         hostname={hostname}
         host={host}
         root={root}
@@ -86,8 +110,10 @@ export function mount(o: MountOptions): ShellHandle {
         layer,
         hostname,
         services: o.services,
-        setAwake: (on) => store.setAwake(r.id, on),
+        setAwake: (on, label) => store.setAwake(r.id, on, label),
+        toast: (t) => store.toast(t),
         openSettings,
+        commands: commands.api,
       });
       if (stop) stops.push(stop);
     } catch (e) {
@@ -102,6 +128,7 @@ export function mount(o: MountOptions): ShellHandle {
     closeSettings: () => store.set({ settings: null }),
     setAwake: store.setAwake,
     unmount() {
+      doc.removeEventListener("keydown", onKeyDown, true);
       for (const stop of stops.splice(0)) {
         try {
           stop();

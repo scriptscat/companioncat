@@ -25,6 +25,3 @@ export function useEnabled(ref: string) {
     },
   };
 }
-
-/** The page entry (网页对照) is not run in this version (R10.8). */
-export const isUnsupported = (e: ResolvedEntry) => e.id === "page" || e.def.present.surface.type === "inline-after";

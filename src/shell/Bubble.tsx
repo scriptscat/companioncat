@@ -26,11 +26,16 @@ function place(cat: CatPos) {
 export function Bubble({
   cat,
   quick,
+  commands,
+  onRunCommand,
   onClose,
   onHide,
 }: {
   cat: CatPos;
   quick: ReactNode;
+  /** Quick commands, shown as buttons above the quick settings. `disabled` greys the button; running it explains why. */
+  commands: { id: string; title: string; hotkey?: string; disabled: boolean }[];
+  onRunCommand: (id: string) => void;
   /** Close and give focus back to the cat. */
   onClose: () => void;
   onHide: () => void;
@@ -81,6 +86,22 @@ export function Bubble({
       ) : (
         <>
           <p className="truncate text-[12.5px] text-ink-3">{shell.hostname}</p>
+          {commands.length > 0 && (
+            <div className="mt-2 flex flex-col gap-2">
+              {commands.map((c) => (
+                <Btn
+                  key={c.id}
+                  size="sm"
+                  aria-disabled={c.disabled || undefined}
+                  className={cn("w-full justify-between", c.disabled && "opacity-50")}
+                  onClick={() => onRunCommand(c.id)}
+                >
+                  <span>{c.title}</span>
+                  {c.hotkey && <kbd className="font-mono text-[11px] opacity-80">{c.hotkey}</kbd>}
+                </Btn>
+              ))}
+            </div>
+          )}
           {quick && <div className="mt-2 flex flex-col gap-2.5">{quick}</div>}
         </>
       )}

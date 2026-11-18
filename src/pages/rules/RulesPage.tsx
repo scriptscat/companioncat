@@ -4,9 +4,30 @@ import { checkLocalRules, summarize, type LocalProblem, type PackSummary } from 
 import type { Subscription, SubscriptionManager } from "../../core/subscriptions";
 import { Btn, EmptyRules, IconBtn, Menu, Monogram, Section, SettingRow, Tag, TextInput, cn } from "../../ui";
 import { useShell } from "../../shell";
+import { openTeach } from "../../features/teach/register";
 
 /** Where the local rules editor text is kept (one string; empty means no local rules). */
 export const LOCAL_RULES_KEY = "cc:rules:local";
+
+/** Text waiting for the rules page to open the editor with (「自己改」). */
+let pendingEdit: string | undefined;
+const editListeners = new Set<() => void>();
+let editSeq = 0;
+
+/**
+ * 「自己改」 (R6.5): the rules page opens the local rules editor with `text` in it, not saved — the page
+ * opened next, or the one already open. Nothing is stored until 「检查并保存」.
+ */
+export function editLocalRules(text: string): void {
+  pendingEdit = text;
+  for (const l of [...editListeners]) l();
+}
+
+function takeEdit(): View | undefined {
+  const text = pendingEdit;
+  pendingEdit = undefined;
+  return text === undefined ? undefined : { kind: "local", draft: text, seq: ++editSeq };
+}
 
 export interface Clipboard {
   writeText(text: string): Promise<void> | void;
@@ -45,18 +66,26 @@ function gives(c: PackSummary["counts"]): string[] {
   ].filter(Boolean) as string[];
 }
 
-type View = { kind: "list" } | { kind: "pack"; id: string } | { kind: "local" };
+type View = { kind: "list" } | { kind: "pack"; id: string } | { kind: "local"; draft?: string; seq?: number };
 
 export function RulesPage({ subscriptions, clipboard }: RulesPageProps) {
   const shell = useShell();
   const subs = subscriptions ?? shell.services.subscriptions;
-  const [view, setView] = useState<View>({ kind: "list" });
+  const [view, setView] = useState<View>(() => takeEdit() ?? { kind: "list" });
   const [, bump] = useState(0);
   const refresh = useCallback(() => bump((n) => n + 1), []);
   useEffect(() => subs?.onChange(refresh), [subs, refresh]);
+  useEffect(() => {
+    const open = () => {
+      const next = takeEdit();
+      if (next) setView(next);
+    };
+    editListeners.add(open);
+    return () => void editListeners.delete(open);
+  }, []);
 
   if (view.kind === "local") {
-    return <LocalRules subs={subs} onBack={() => setView({ kind: "list" })} />;
+    return <LocalRules key={view.seq} subs={subs} draft={view.draft} onBack={() => setView({ kind: "list" })} />;
   }
   const open = view.kind === "pack" ? subs?.get(view.id) : undefined;
   if (open) return <PackDetail sub={open} narrow={shell.narrow} onBack={() => setView({ kind: "list" })} />;
@@ -222,6 +251,11 @@ function PackList({
             </span>
             <ChevronRight className="size-4 text-ink-3" />
           </button>
+          <div className="mt-2">
+            <Btn variant="soft" size="sm" onClick={() => void openTeach()}>
+              让小猫写一条规则
+            </Btn>
+          </div>
         </Section>
       </div>
     </Scroll>
@@ -332,12 +366,14 @@ function ProblemItem({ p }: { p: LocalProblem }) {
   );
 }
 
-function LocalRules({ subs, onBack }: { subs?: SubscriptionManager; onBack: () => void }) {
+function LocalRules({ subs, draft, onBack }: { subs?: SubscriptionManager; draft?: string; onBack: () => void }) {
   const shell = useShell();
   const storage = shell.services.storage;
-  const [text, setText] = useState(() => storage.get<string>(LOCAL_RULES_KEY) ?? "");
-  const [problems, setProblems] = useState<LocalProblem[]>([]);
+  const [text, setText] = useState(() => draft ?? storage.get<string>(LOCAL_RULES_KEY) ?? "");
+  // a draft placed here by 「自己改」 shows where it is wrong right away
+  const [problems, setProblems] = useState<LocalProblem[]>(() => (draft === undefined ? [] : checkLocalRules(draft, subs?.sources() ?? []).problems));
   const [status, setStatus] = useState<string | null>(null);
+  const [unsaved, setUnsaved] = useState(draft !== undefined);
   const gutter = useRef<HTMLDivElement>(null);
   const lines = text.split("\n");
 
@@ -345,6 +381,7 @@ function LocalRules({ subs, onBack }: { subs?: SubscriptionManager; onBack: () =
     if (!text.trim()) {
       storage.delete(LOCAL_RULES_KEY);
       setProblems([]);
+      setUnsaved(false);
       setStatus("已保存，本地规则已清空");
       return;
     }
@@ -355,6 +392,7 @@ function LocalRules({ subs, onBack }: { subs?: SubscriptionManager; onBack: () =
       return;
     }
     storage.set(LOCAL_RULES_KEY, text);
+    setUnsaved(false);
     const errors = r.problems.filter((p) => p.severity === "error").length;
     setStatus(errors ? `已保存。${errors} 处有问题的条目已停用，其他照常生效` : "已保存");
   }
@@ -374,6 +412,11 @@ function LocalRules({ subs, onBack }: { subs?: SubscriptionManager; onBack: () =
       <div className="flex max-w-[680px] flex-col gap-4">
         <Back onClick={onBack} />
         <p className="text-[13.5px] leading-relaxed text-ink-2">本地规则优先级最高，订阅更新不会覆盖它。API Key 不要写在这里，在引擎页面填写。</p>
+        {unsaved && (
+          <p className="rounded-xl bg-ginger-soft px-3 py-2 text-[13px] leading-relaxed text-ginger-ink">
+            小猫的草稿已经放进来了，还没保存。改好后点「检查并保存」才会生效。
+          </p>
+        )}
         <div className="flex rounded-[18px] border-[1.5px] border-line bg-fur focus-within:border-ink">
           <div
             ref={gutter}

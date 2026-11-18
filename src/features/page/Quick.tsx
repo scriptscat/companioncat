@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
+import { isAutomationEntry } from "../../core/rules/automation";
 import type { SettingDef } from "../../core/rules/types";
 import { engineTarget, useShell } from "../../shell";
 import { Dot } from "../../ui";
 import { SettingControl } from "./controls";
-import { isUnsupported, useStores } from "./hooks";
+import { useStores } from "./hooks";
 import { isEnabled } from "./enabled";
 
 interface Item {
@@ -30,7 +31,7 @@ function Row({ item }: { item: Item }) {
   );
 }
 
-/** R9.5: every `quick` setting of the enabled features, plus the missing-key shortcut. */
+/** R9.5: every `quick` setting of the enabled features (automation entries show theirs in the 自动化 group, R3.6), plus the missing-key shortcut. */
 export function Quick(): ReactNode {
   const { openSettings } = useShell();
   const { storage, resolved, secrets } = useStores();
@@ -40,7 +41,7 @@ export function Quick(): ReactNode {
     .filter((f) => f.enabled && on(f.ref))
     .flatMap((f) => [
       ...quickOf(f.ref, f.def.settings),
-      ...f.entries.filter((e) => e.enabled && !isUnsupported(e) && on(e.ref)).flatMap((e) => quickOf(e.ref, e.def.settings)),
+      ...f.entries.filter((e) => e.enabled && on(e.ref) && !isAutomationEntry(e.def)).flatMap((e) => quickOf(e.ref, e.def.settings)),
     ]);
   const keyless = resolved.providers.filter((p) => p.enabled && !secrets.isDisabled(p.ref) && secrets.lookup(p.ref).missing.length > 0);
 

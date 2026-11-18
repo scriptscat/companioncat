@@ -1,7 +1,10 @@
-import { useRef, useState, type Ref } from "react";
+import { X } from "lucide-react";
+import { useEffect, useRef, useState, type Ref } from "react";
 import { Cat, type CatBreed } from "../ui/cat";
 import { cn } from "../ui/ui";
 import type { CatPos } from "./prefs";
+import type { ToastSpec } from "./registry";
+import type { UiState } from "./store";
 
 /** Mockup v5: right-3 bottom-1. */
 export const DEFAULT_CAT_POS: CatPos = { right: 12, bottom: 4 };
@@ -86,5 +89,93 @@ export function CornerCat({
     >
       <Cat breed={breed} size={78} awake={awake} zzz={!awake} className={cn(!awake && "cc-breathe")} />
     </button>
+  );
+}
+
+const TOAST_MS = 5000;
+
+function ToastCard({ spec, onDone }: { spec: ToastSpec; onDone: () => void }) {
+  const [held, setHeld] = useState({ hover: false, focus: false });
+  const hold = held.hover || held.focus;
+  const done = useRef(onDone);
+  done.current = onDone;
+  useEffect(() => {
+    if (hold) return;
+    const t = setTimeout(() => done.current(), spec.ms ?? TOAST_MS);
+    return () => clearTimeout(t);
+  }, [hold, spec.ms]);
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      onPointerEnter={() => setHeld((h) => ({ ...h, hover: true }))}
+      onPointerLeave={() => setHeld((h) => ({ ...h, hover: false }))}
+      onFocus={() => setHeld((h) => ({ ...h, focus: true }))}
+      onBlur={() => setHeld((h) => ({ ...h, focus: false }))}
+      className="cc cc-pop sticker flex max-w-[360px] items-center gap-3 rounded-full bg-fur py-2 pr-2 pl-4 text-[13.5px] text-ink"
+    >
+      <span className="min-w-0">{spec.text}</span>
+      {spec.links?.map((l) => (
+        <button
+          key={l.label}
+          type="button"
+          className="shrink-0 cursor-pointer rounded-[4px] px-0.5 text-[13px] font-bold whitespace-nowrap text-ginger-ink focus-visible:outline-2"
+          onClick={() => {
+            l.onClick();
+            onDone();
+          }}
+        >
+          {l.label}
+        </button>
+      ))}
+      <button
+        type="button"
+        aria-label="关闭"
+        className="grid size-6 cursor-pointer place-items-center rounded-full text-ink-3 hover:bg-sunken focus-visible:outline-2"
+        onClick={onDone}
+      >
+        <X size={14} aria-hidden="true" />
+      </button>
+    </div>
+  );
+}
+
+/** 小猫旁边的反馈：醒着时的标签（R2.1）在最下面，提示（R2.2）往上叠；Esc 收起最新的一条。 */
+export function CatFeedback({
+  pos,
+  label,
+  toasts,
+  onDismiss,
+}: {
+  pos: CatPos;
+  label?: string;
+  toasts: UiState["toasts"];
+  onDismiss: (id: number) => void;
+}) {
+  const newest = toasts[toasts.length - 1]?.id;
+  useEffect(() => {
+    if (newest === undefined) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      e.preventDefault();
+      onDismiss(newest);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [newest, onDismiss]);
+  if (!label && !toasts.length) return null;
+  const at = fit(pos);
+  return (
+    <div
+      className="cc fixed z-50 flex flex-col-reverse items-end gap-2"
+      style={{ right: at.right + CAT_BOX + 4, bottom: at.bottom + 20 }}
+    >
+      {label && (
+        <span className="cc-pop sticker rounded-full bg-fur px-3.5 py-1.5 text-[13px] font-bold text-ink">{label}</span>
+      )}
+      {toasts.map((t) => (
+        <ToastCard key={t.id} spec={t.spec} onDone={() => onDismiss(t.id)} />
+      ))}
+    </div>
   );
 }

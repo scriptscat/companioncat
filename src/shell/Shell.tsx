@@ -2,9 +2,9 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, use
 import { PortalContainer, TipProvider } from "../ui/ui";
 import { ShellCtx, type ShellApi } from "./context";
 import { Bubble } from "./Bubble";
-import { CornerCat, DEFAULT_CAT_POS } from "./CornerCat";
+import { CatFeedback, CornerCat, DEFAULT_CAT_POS } from "./CornerCat";
 import { PREF_PREFIX, readPrefs, writePref, type Theme } from "./prefs";
-import type { FeatureRegistration, PageRegistration, Registration } from "./registry";
+import type { CommandRegistry, FeatureRegistration, PageRegistration, Registration } from "./registry";
 import { isBare, type ShellServices } from "./services";
 import { Settings } from "./Settings";
 import type { UiStore } from "./store";
@@ -13,6 +13,7 @@ export interface ShellProps {
   store: UiStore;
   services: ShellServices;
   registrations: Registration[];
+  commands: CommandRegistry;
   hostname: string;
   host: HTMLElement;
   root: ShadowRoot;
@@ -64,6 +65,7 @@ export function Shell(p: ShellProps) {
     useCallback(() => rules.get(), [rules]),
   );
   const [prefs, setPrefs] = useState(() => readPrefs(services.storage, hostname));
+  useSyncExternalStore(p.commands.subscribe, p.commands.version);
   useViewport();
   const narrow = window.innerWidth < NARROW;
   const systemDark = useSystemDark();
@@ -154,10 +156,13 @@ export function Shell(p: ShellProps) {
               onMoved={(pos) => api.setPref("catPos", pos)}
             />
           )}
+          <CatFeedback pos={catPos} label={ui.labels.at(-1)?.label} toasts={ui.toasts} onDismiss={store.dismissToast} />
           {showCat && ui.bubble && (
             <Bubble
               cat={catPos}
               quick={quick.length ? quick : null}
+              commands={p.commands.list().filter((c) => c.quick).map((c) => ({ id: c.id, title: c.title, hotkey: c.hotkey, disabled: !!c.disabled?.() }))}
+              onRunCommand={p.commands.run}
               onClose={() => {
                 store.set({ bubble: false });
                 catRef.current?.focus();

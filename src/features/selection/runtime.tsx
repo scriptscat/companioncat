@@ -147,7 +147,7 @@ export function startSelection(ctx: RuntimeContext): () => void {
     const scope = { settings: chosen.settings, selection, page: chosen.page, site: chosen.site };
     let surface: Partial<SurfaceDef> = {};
     try {
-      surface = (await renderTemplate(chosen.entry.def.present.surface, { ...scope, vars: {} }, POSITIONS.surface)) as SurfaceDef;
+      surface = (await renderTemplate(chosen.entry.def.present!.surface, { ...scope, vars: {} }, POSITIONS.surface)) as SurfaceDef;
     } catch {
       surface = {};
     }
@@ -161,7 +161,7 @@ export function startSelection(ctx: RuntimeContext): () => void {
     const card: CardState = {
       id,
       title: chosen.feature.def.name,
-      view: chosen.entry.def.present.view,
+      view: chosen.entry.def.present!.view,
       scope,
       vars: {},
       overrides: {},

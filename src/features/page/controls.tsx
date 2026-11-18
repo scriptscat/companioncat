@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { LANGUAGES } from "../../core/languages";
 import type { SettingDef } from "../../core/rules/types";
+import { keyName, parseHotkey, type Hotkey } from "../../core/stores/settings";
 import { useShell } from "../../shell";
 import { cn, Picker, Segments, SettingRow, Tick, Toggle, TextInput } from "../../ui";
 import { useStores } from "./hooks";
@@ -102,6 +103,8 @@ export function SettingControl({ owner, name, def, compact }: ControlProps) {
       return <Text {...{ def, value: value as string, write }} />;
     case "number":
       return <Num {...{ def, value: value as number, write }} />;
+    case "hotkey":
+      return <HotkeyEdit {...{ def, value: value as string, write }} />;
   }
 }
 
@@ -122,25 +125,103 @@ function Text({ def, value, write }: Editor<string>) {
   );
 }
 
-/** Keeps what is being typed; only a legal number (within min/max) is stored. */
+/** Keeps what is being typed; only a legal number (within min/max) is stored. `format: "percent"` shows and edits x100. */
 function Num({ def, value, write }: Editor<number>) {
-  const [draft, setDraft] = useState(String(value));
-  return (
+  const percent = def.format === "percent";
+  const scale = percent ? 100 : 1;
+  const shown = (v: number) => String(Math.round(v * scale * 1e6) / 1e6);
+  const [draft, setDraft] = useState(shown(value));
+  const input = (
     <TextInput
       type="number"
       aria-label={def.title}
-      min={def.min}
-      max={def.max}
-      step={def.step}
+      min={def.min === undefined ? undefined : shown(def.min)}
+      max={def.max === undefined ? undefined : shown(def.max)}
+      step={def.step === undefined ? undefined : shown(def.step)}
       value={draft}
       onChange={(e) => {
         setDraft(e.target.value);
-        if (e.target.value !== "") write(Number(e.target.value));
+        if (e.target.value !== "") write(Number(e.target.value) / scale);
       }}
-      onBlur={() => setDraft(String(value))}
+      onBlur={() => setDraft(shown(value))}
     />
   );
+  return percent ? (
+    <div className="flex items-center gap-2">
+      <div className="w-28">{input}</div>
+      <span className="text-[14px] text-ink-2">%</span>
+    </div>
+  ) : (
+    input
+  );
 }
+
+const MODIFIER_CODE = /^(Control|Alt|Shift|Meta|OS)(Left|Right)?$/;
+const MODIFIERS = ["Ctrl", "Alt", "Shift", "Meta"] as const;
+
+/**
+ * A key combination, recorded by clicking the button and pressing the keys (Esc cancels, the clear button
+ * stores "" = no hotkey). Shown as 「Alt + A」.
+ */
+function HotkeyEdit({ def, value, write }: Editor<string>) {
+  const [recording, setRecording] = useState(false);
+  const [hint, setHint] = useState<string>();
+  const stop = () => {
+    setRecording(false);
+    setHint(undefined);
+  };
+  const hk = value === "" ? undefined : parseHotkey(value);
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        aria-label={def.title}
+        onClick={() => setRecording(true)}
+        onBlur={stop}
+        onKeyDown={(e) => {
+          if (!recording) return;
+          e.preventDefault();
+          e.stopPropagation();
+          if (e.code === "Escape") return stop();
+          if (MODIFIER_CODE.test(e.code)) return; // only modifiers so far: keep waiting
+          const key = keyName(e.code);
+          const held = { Ctrl: e.ctrlKey, Alt: e.altKey, Shift: e.shiftKey, Meta: e.metaKey };
+          const mods = MODIFIERS.filter((m) => held[m]);
+          const next = key === undefined ? undefined : [...mods, key].join("+");
+          if (next === undefined) return setHint("这个键不能用");
+          if (parseHotkey(next) === null) return setHint("需要至少一个修饰键（功能键除外）");
+          write(next);
+          stop();
+        }}
+        className="flex h-10 flex-1 items-center justify-between rounded-xl border-[1.5px] border-line bg-fur px-3 text-[14px] text-ink hover:border-line-strong focus:border-ink focus:outline-none"
+      >
+        {recording ? (
+          <span className="text-ink-2">
+            按下快捷键…（Esc 取消）{hint && <span className="ml-2 text-berry">{hint}</span>}
+          </span>
+        ) : (
+          <span className="font-code">{hk ? comboText(hk) : "未设置"}</span>
+        )}
+        {!recording && <span className="text-[12.5px] text-ink-3">改</span>}
+      </button>
+      {value !== "" && (
+        <button
+          type="button"
+          aria-label="清除快捷键"
+          onClick={() => {
+            stop();
+            write("");
+          }}
+          className="h-10 rounded-xl px-3 text-[13px] text-ink-2 hover:text-ink"
+        >
+          清除
+        </button>
+      )}
+    </div>
+  );
+}
+
+const comboText = (hk: Hotkey) => [...MODIFIERS.filter((m) => hk.mods[m]), hk.key].join(" + ");
 
 /** A setting in the settings page: switches sit on the right, other controls below (mockup SettingItem). */
 export function SettingItem({ owner, name, def }: Omit<ControlProps, "compact">) {

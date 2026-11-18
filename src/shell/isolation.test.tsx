@@ -62,7 +62,7 @@ describe("style isolation (R1.2)", () => {
     expect(document.adoptedStyleSheets.length).toBe(adopted);
   });
 
-  it("opening a Radix menu or select leaves the page's <body> untouched (no aria-hidden, no scroll lock)", async () => {
+  it("opening a Radix menu or select leaves the page's <body> untouched (no aria-hidden, no scroll lock, no style)", async () => {
     const user = userEvent.setup();
     const article = document.createElement("article");
     document.body.append(article);
@@ -74,11 +74,16 @@ describe("style isolation (R1.2)", () => {
     );
     const { handle, q } = setup({ css, registrations: [definePage({ id: "general", group: "companion", component: Page })] });
     act(() => handle.openSettings("general"));
+    const kids = [...document.body.children];
     const untouched = () => {
+      // nothing of ours lands in the page's <body> (Radix focus guards included; hard invariant 4)
+      expect([...document.body.children]).toEqual(kids);
       for (const el of [document.body, ...document.body.children]) {
         expect(el.getAttribute("aria-hidden")).toBeNull();
         expect(el.getAttribute("data-aria-hidden")).toBeNull();
         expect(el.getAttribute("data-scroll-locked")).toBeNull();
+        // nor style it: a modal Radix layer sets pointer-events: none on the page's <body> (hard invariant 4)
+        expect(el.getAttribute("style")).toBeNull();
       }
     };
     try {

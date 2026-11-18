@@ -1,3 +1,4 @@
+import type { ElementHandle } from "../core/expr";
 import type { ComponentDef, ViewTemplateDef } from "../core/rules";
 
 /** One engine's slot in a `result-list`. `streaming` shows the `ok` view with the partial `output`. */
@@ -16,6 +17,8 @@ export type ViewAction =
   | { retry: string }
   | { rerun: { vars: Record<string, unknown> } }
   | { open: string }
+  /** Scrolls the page to the handle's element (the view layer does it; onAction also sees it). */
+  | { scrollTo: ElementHandle }
   | { surface: "pin" | "close" };
 
 export type OnAction = (action: ViewAction) => void;

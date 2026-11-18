@@ -235,6 +235,12 @@
   animation-delay: 0.3s;
 }
 
+/* 卡片正文里直接写的一行字（例如做题结果的页脚说明）和列表项一样留出内边距，不贴着圆角被裁掉 */
+[data-part="body"] > [data-part="text"] {
+  display: block;
+  padding: 8px 16px 14px;
+}
+
 .cc-scroll {
   scrollbar-width: thin;
   scrollbar-color: var(--line-strong) transparent;

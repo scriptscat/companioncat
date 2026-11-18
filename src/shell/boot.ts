@@ -37,6 +37,7 @@ export function boot(o: BootOptions = {}): ShellHandle | null {
     hostname: o.hostname,
     version: o.version,
     css: o.css,
+    registerMenu: (title, run) => void gm.GM_registerMenuCommand(title, run),
   });
   // Always registered, so settings stay reachable when the cat is hidden.
   gm.GM_registerMenuCommand(MENU_OPEN_SETTINGS, () => handle.openSettings());

@@ -121,6 +121,7 @@ function start(o: Opts = {}) {
     services: { storage, rules: staticRules(resolved), ...o.services },
     setAwake,
     openSettings,
+    commands: { register: () => () => {} },
   };
   let stop: void | (() => void);
   act(() => {

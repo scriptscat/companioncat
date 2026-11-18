@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { renderTemplate, type Scope } from "../core/expr";
+import { elementOf, isElementHandle, renderTemplate, type Scope } from "../core/expr";
 import { POSITIONS, withVars } from "../core/rules/positions";
 import type { Position } from "../core/expr";
 import { engineTarget } from "../shell/targets";
@@ -73,7 +73,7 @@ function Leaf({ node, ctx }: { node: Node; ctx: Ctx }) {
             style === "reading-lg" && "font-read text-[17px] leading-[1.75]",
           )}
         >
-          {v.value === undefined || v.value === null ? "" : String(v.value)}
+          {v.value === undefined || v.value === null ? "" : node.format === "percent" && typeof v.value === "number" ? `${Math.round(v.value * 100)}%` : String(v.value)}
         </span>
       );
     }
@@ -175,7 +175,7 @@ function ResultItemView({ item, primary, node, ctx }: { item: ResultItem; primar
       aria-busy={item.state === "loading" || item.state === "streaming" ? true : undefined}
       className={primary ? "px-4 pb-3" : "px-4 py-2.5"}
     >
-      {!primary && <p className="mb-0.5 text-[12.5px] text-ink-3">{item.engineName ?? item.engine}</p>}
+      {!primary && (item.engineName ?? item.engine) !== "" && <p className="mb-0.5 text-[12.5px] text-ink-3">{item.engineName ?? item.engine}</p>}
       <ItemBody item={item} primary={primary} node={node} ctx={itemCtx} />
       {showFooter && (
         <div className="mt-1 flex items-center gap-2 text-[12.5px] text-ink-3">
@@ -213,6 +213,24 @@ function ResultList({ node, ctx }: { node: Node; ctx: Ctx }) {
   );
 }
 
+/** A row; with an `action` the whole row is a button (a quiz row scrolls to its question), and `style: below` marks a below-threshold row. */
+function Row({ node, ctx }: { node: Node; ctx: Ctx }) {
+  const style = useRendered<Node>({ style: node.style }, ctx.scope, ctx.pos).value?.style;
+  const kind = style === undefined ? undefined : String(style);
+  const clickable = Boolean(node.action);
+  const kids = <Children nodes={asArray(node.children)} ctx={ctx} />;
+  const className = cn("flex w-full items-center gap-2", clickable && "rounded-xl px-2.5 py-2 text-left hover:bg-sunken", kind === "below" && "bg-ginger-soft/70 hover:bg-ginger-soft");
+  return clickable ? (
+    <button type="button" data-part="row" data-style={kind || undefined} className={className} onClick={() => act(ctx, node.action)}>
+      {kids}
+    </button>
+  ) : (
+    <div data-part="row" data-style={kind || undefined} className={className}>
+      {kids}
+    </div>
+  );
+}
+
 function UseView({ node, ctx }: { node: Node; ctx: Ctx }) {
   const id = String(node.use);
   const params = useRendered<Node>(node.with ?? {}, ctx.scope, ctx.pos);
@@ -243,11 +261,7 @@ function NodeView({ node, ctx }: { node: Node; ctx: Ctx }): ReactNode {
         </div>
       );
     case "row":
-      return (
-        <div data-part="row" className="flex items-center gap-2">
-          <Children nodes={asArray(node.children)} ctx={deeper} />
-        </div>
-      );
+      return <Row node={node} ctx={deeper} />;
     case "spacer":
       return <span data-part="spacer" className="flex-1" />;
     case "dots":
@@ -284,6 +298,10 @@ function Root({ node, scope, onAction, opts }: { node: Node | null | undefined; 
           } catch {
             say("复制失败");
           }
+        }
+        if ("scrollTo" in a && isElementHandle(a.scrollTo)) {
+          const el = elementOf(a.scrollTo);
+          if (el.isConnected) el.scrollIntoView?.({ behavior: "smooth", block: "center" });
         }
         latest.current.onAction(a);
       },
