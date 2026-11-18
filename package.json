@@ -1,6 +1,15 @@
 {
   "name": "companioncat",
-  "version": "0.0.0",
+  "version": "0.2.0",
+  "license": "GPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/scriptscat/companioncat.git"
+  },
+  "homepage": "https://github.com/scriptscat/companioncat",
+  "bugs": {
+    "url": "https://github.com/scriptscat/companioncat/issues"
+  },
   "private": true,
   "type": "module",
   "packageManager": "pnpm@9.1.2",
@@ -9,7 +18,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "build": "vite build && node e2e/check-build.mjs",
-    "e2e": "node e2e/run.mjs"
+    "e2e": "node e2e/run.mjs",
+    "release": "node scripts/release.mjs"
   },
   "dependencies": {
     "@cfworker/json-schema": "^4.1.6",

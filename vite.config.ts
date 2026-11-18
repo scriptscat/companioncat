@@ -1,8 +1,13 @@
+import { readFileSync } from "node:fs";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 import monkey from "vite-plugin-monkey";
 import builtinPacks from "./build/builtin-packs";
 import { PAGE_SAFE_ALIASES } from "./src/ui/page-safe/aliases";
+
+const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")) as { version: string };
+const REPO = "https://github.com/scriptscat/companioncat";
+const RELEASE = `${REPO}/releases/latest/download`;
 
 /** Exactly the APIs R1.1 declares; autoGrant is off so nothing else slips in. */
 const GRANTS = [
@@ -26,10 +31,14 @@ export default defineConfig({
       userscript: {
         name: "陪伴猫",
         namespace: "https://github.com/scriptscat/companioncat",
-        version: "0.1.0",
-        description: "住在网页角落的小猫：划词翻译，能力由规则包提供",
+        version: pkg.version,
+        license: "GPL-3.0",
+        description: "住在网页角落的小猫：划词与网页对照翻译、页面自动化（跳过广告）、做题、教小猫做件事，能力由规则包提供",
         author: "ScriptCat",
-        homepage: "https://github.com/scriptscat/companioncat",
+        homepage: REPO,
+        supportURL: `${REPO}/issues`,
+        updateURL: `${RELEASE}/companioncat.meta.js`,
+        downloadURL: `${RELEASE}/companioncat.user.js`,
         match: ["http://*/*", "https://*/*"],
         noframes: true,
         connect: ["*"],
@@ -37,6 +46,7 @@ export default defineConfig({
       },
       build: {
         fileName: "companioncat.user.js",
+        metaFileName: true,
         autoGrant: false,
         // R1.2: CSS never goes to GM_addStyle or document.head; the shell puts it into its shadow root.
         cssSideEffects: "() => {}",

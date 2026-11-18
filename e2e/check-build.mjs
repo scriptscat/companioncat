@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const FILE = path.resolve(process.argv[2] ?? path.join(ROOT, "dist/companioncat.user.js"));
 
+export const RELEASE_BASE = "https://github.com/scriptscat/companioncat/releases/latest/download/";
 export const GRANTS = [
   "GM_xmlhttpRequest",
   "GM_getValue",
@@ -44,7 +45,16 @@ function stylesheet(code) {
   return null;
 }
 
-export function checkBuild(code, packs, features = []) {
+/** meta.js must be exactly the user.js header block (plus a trailing newline). */
+export function checkMeta(code, meta) {
+  if (meta == null) return ["dist/companioncat.meta.js is missing"];
+  const end = "// ==/UserScript==";
+  const head = code.slice(0, code.indexOf(end) + end.length);
+  return meta.trim() === head.trim() ? [] : ["dist/companioncat.meta.js does not match the user.js header"];
+}
+
+/** opts.version: the package.json version the header must carry. */
+export function checkBuild(code, packs, features = [], opts = {}) {
   const failures = [];
   const fail = (msg) => failures.push(msg);
   const header = parseHeader(code);
@@ -54,6 +64,10 @@ export function checkBuild(code, packs, features = []) {
 
   if (one("name") !== "陪伴猫") fail(`@name is ${one("name")}, want 陪伴猫`);
   for (const k of ["namespace", "version", "description"]) if (!one(k)) fail(`@${k} missing`);
+  if (opts.version && one("version") !== opts.version) fail(`@version is ${one("version")}, package.json says ${opts.version}`);
+  if (one("updateURL") !== `${RELEASE_BASE}companioncat.meta.js`) fail(`@updateURL is ${one("updateURL")}, want ${RELEASE_BASE}companioncat.meta.js`);
+  if (one("downloadURL") !== `${RELEASE_BASE}companioncat.user.js`) fail(`@downloadURL is ${one("downloadURL")}, want ${RELEASE_BASE}companioncat.user.js`);
+  if (one("license") !== "GPL-3.0") fail(`@license is ${one("license")}, want GPL-3.0`);
   const matches = all("match").sort();
   if (JSON.stringify(matches) !== JSON.stringify(["http://*/*", "https://*/*"])) fail(`@match is ${JSON.stringify(matches)}, want http://*/* and https://*/*`);
   if (all("include").length || all("exclude-match").length) fail("unexpected @include / @exclude-match");
@@ -116,7 +130,10 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   }
   const packs = officialPacks();
   const features = featureIds();
-  const failures = checkBuild(code, packs, features);
+  const pkg = JSON.parse(readFileSync(path.join(ROOT, "package.json"), "utf8"));
+  const failures = checkBuild(code, packs, features, { version: pkg.version });
+  const metaFile = FILE.replace(/\.user\.js$/, ".meta.js");
+  failures.push(...checkMeta(code, existsSync(metaFile) ? readFileSync(metaFile, "utf8") : null));
   let commit = "";
   try {
     commit = execFileSync("git", ["-C", path.join(ROOT, "rules"), "rev-parse", "HEAD"], { encoding: "utf8" }).trim();
@@ -124,5 +141,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (commit && !code.includes(commit)) failures.push(`rules commit ${commit} not embedded as the built-in snapshot version`);
   for (const f of failures) console.error(`FAIL ${f}`);
   if (failures.length) process.exit(1);
-  console.log(`ok   ${path.relative(ROOT, FILE)} (${(code.length / 1024).toFixed(0)} KiB): header, shadow-root CSS, no eval, ${packs.length} official packs, features ${features.join(" ")}`);
+  console.log(`ok   ${path.relative(ROOT, FILE)} (${(code.length / 1024).toFixed(0)} KiB): header v${pkg.version} (urls, license, meta.js), shadow-root CSS, no eval, ${packs.length} official packs, features ${features.join(" ")}`);
 }
