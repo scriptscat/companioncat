@@ -1,8 +1,12 @@
-import { checkTemplate, position, type ExprError, type Position, type VarName } from "../expr";
+import { BASE_FUNCTIONS, checkTemplate, PAGE_FUNCTIONS, position, type ExprError, type Position, type VarName } from "../expr";
+import { isAutomationEntry } from "./automation";
 import { isObject } from "./merge";
 
 const ENGINE: VarName[] = ["input", "options", "secret", "steps"];
 const PAGE: VarName[] = ["settings", "vars", "selection", "page", "site"];
+const TRIGGER: VarName[] = ["settings", "site", "page"];
+/** R1.4: automation triggers and run also read the page through element handles. */
+const AUTOMATION = [...BASE_FUNCTIONS, ...PAGE_FUNCTIONS];
 
 /**
  * Where each rule field is evaluated and which variables it may use (R8.3).
@@ -11,14 +15,19 @@ const PAGE: VarName[] = ["settings", "vars", "selection", "page", "site"];
 export const POSITIONS = {
   hosts: position("引擎 hosts", ["options"]),
   when: position("引擎 when", ["options"]),
-  request: position("引擎请求", ENGINE),
-  stepOutput: position("引擎步骤 output", [...ENGINE, "response"]),
+  /** `landed.<id>` is where an earlier step ended up after redirects (its own, too, in its output). */
+  request: position("引擎请求", [...ENGINE, "landed"]),
+  stepOutput: position("引擎步骤 output", [...ENGINE, "response", "landed"]),
   stream: position("引擎 stream", [...ENGINE, "response", "stream"]),
   output: position("引擎 output", [...ENGINE, "response", "stream"]),
   errors: position("引擎 errors", [...ENGINE, "response"]),
   bridgeInput: position("桥接 input", ["input", "options"]),
   bridgeOutput: position("桥接 output", ["input", "result"]),
-  trigger: position("触发器", ["settings", "site", "page"]),
+  trigger: position("触发器", TRIGGER),
+  /** An automation entry's triggers: `trigger` is the event (for appear, its element). */
+  autoTrigger: position("自动化触发器", [...TRIGGER, "trigger"], AUTOMATION),
+  /** An automation entry's run; `item` is added inside repeat-each steps and find's where. */
+  autoRun: position("自动化 run", [...PAGE, "trigger"], AUTOMATION),
   select: position("段落选择", ["settings", "site", "page"]),
   run: position("功能 run", PAGE),
   surface: position("展示位置", PAGE),
@@ -30,7 +39,7 @@ export const POSITIONS = {
 
 /** A component position with extra variables: `item` inside result-list items, `value` inside onChange. */
 export function withVars(pos: Position, ...extra: VarName[]): Position {
-  return position(pos.name, [...new Set([...pos.vars, ...extra])]);
+  return position(pos.name, [...new Set([...pos.vars, ...extra])], [...pos.functions]);
 }
 
 export type Path = readonly (string | number)[];
@@ -115,6 +124,22 @@ const view: Walker = (value, path, sink) =>
     ? fields({ with: expr(POSITIONS.view) })(value, path, sink)
     : component(POSITIONS.view)(value, path, sink);
 
+/** Automation steps: `item` is the current element in a repeat-each body and in find's `where`. */
+function autoSteps(pos: Position): Walker {
+  const withItem = withVars(pos, "item");
+  const step: Walker = (value, path, sink) => {
+    if (!isObject(value)) return expr(pos)(value, path, sink);
+    for (const [k, v] of Object.entries(value)) {
+      const at = [...path, k];
+      if (k === "then" || k === "else") autoSteps(pos)(v, at, sink);
+      else if (k === "steps" && "repeat" in value) autoSteps(value.repeat === true ? pos : withItem)(v, at, sink);
+      else if (k === "where" && "find" in value) expr(withItem)(v, at, sink);
+      else expr(pos)(v, at, sink);
+    }
+  };
+  return each(step);
+}
+
 export type ItemKind = "contract" | "bridge" | "provider" | "view" | "feature" | "entry" | "site";
 
 /** Expression checkers for each kind of item, applied to a raw definition or an override patch. */
@@ -123,12 +148,16 @@ export const CHECKS: Record<ItemKind, Walker> = {
   bridge: inlineBridge,
   provider: fields({ hosts: expr(POSITIONS.hosts), implements: values(oneOrEach(implementation)) }),
   view: component(POSITIONS.viewTemplate),
-  entry: fields({
-    triggers: each(fields({ enabled: expr(POSITIONS.trigger), confirm: expr(POSITIONS.trigger) })),
-    select: expr(POSITIONS.select),
-    run: expr(POSITIONS.run),
-    present: fields({ surface: expr(POSITIONS.surface), view }),
-  }),
+  entry: (value, path, sink) => {
+    const auto = isAutomationEntry(value);
+    const trigger = expr(auto ? POSITIONS.autoTrigger : POSITIONS.trigger);
+    fields({
+      triggers: each(fields({ enabled: trigger, confirm: trigger, hotkey: trigger })),
+      select: expr(POSITIONS.select),
+      run: auto ? autoSteps(POSITIONS.autoRun) : expr(POSITIONS.run),
+      present: fields({ surface: expr(POSITIONS.surface), view }),
+    })(value, path, sink);
+  },
   feature: (value, path, sink) => fields({ entries: each(CHECKS.entry) })(value, path, sink),
   site: fields({ skip: expr(POSITIONS.site) }),
 };

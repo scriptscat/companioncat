@@ -1,0 +1,67 @@
+{
+  "_source": "Recorded from a mainland-China network on 2026-11-17 without cookies or a key. GET https://www.bing.com/translator answered 302 Location: https://cn.bing.com/translator; the replay gives the followed answer with its finalUrl, as GM_xmlhttpRequest does. The cn page is trimmed to the two inline scripts the provider reads (_G with IG, params_AbusePreventionHelper; EventID and other per-visit ids dropped); IG/key/token are anonymous page values that expire an hour after recording. Exchanges: page, auto->zh-Hans (joined texts), en->ja, all posted to cn.bing.com. The same POST sent to www.bing.com answered 302 to cn.bing.com.",
+  "exchanges": [
+    {
+      "method": "GET",
+      "url": "https://www.bing.com/translator",
+      "finalUrl": "https://cn.bing.com/translator",
+      "status": 200,
+      "headers": {
+        "content-type": "text/html; charset=utf-8"
+      },
+      "body": "<!DOCTYPE html><html dir=\"ltr\" lang=\"zh\" xml:lang=\"zh\" xmlns=\"http://www.w3.org/1999/xhtml\" xmlns:Web=\"http://schemas.live.com/Web/\"><head><title>Microsoft Translator - 从英语翻译</title>\n<!-- trimmed: only the two inline scripts the provider reads are kept -->\n<script>var _G={Region:\"CN\",Lang:\"zh-CN\",Mkt:\"zh-CN\",RevIpCC:\"cn\",RTL:false,Ver:\"47\",IG:\"F2E6F533FA1F44218DE78FA8AEEDD4EB\",V:\"translator\",P:\"translator\"};</script>\n<script>var params_AbusePreventionHelper = [1794915652245,\"2GJMMXeYpdSOM05ZWImu8MD9uvuAZuV0\",3600000];</script>\n</head><body></body></html>"
+    },
+    {
+      "method": "POST",
+      "url": "https://cn.bing.com/ttranslatev3?isVertical=1&IG=F2E6F533FA1F44218DE78FA8AEEDD4EB&IID=translator.5028",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "json": [
+        {
+          "translations": [
+            {
+              "text": "你好，世界\n早上好",
+              "to": "zh-Hans",
+              "transliteration": {
+                "text": "Nǐ hǎo, shìjiè\nZǎoshang hǎo",
+                "script": "Latn"
+              }
+            }
+          ],
+          "usedLLM": true,
+          "detectedLanguage": {
+            "language": "en"
+          }
+        }
+      ]
+    },
+    {
+      "method": "POST",
+      "url": "https://cn.bing.com/ttranslatev3?isVertical=1&IG=F2E6F533FA1F44218DE78FA8AEEDD4EB&IID=translator.5028",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json; charset=utf-8"
+      },
+      "json": [
+        {
+          "translations": [
+            {
+              "text": "おはようございます",
+              "to": "ja",
+              "transliteration": {
+                "text": "O-wa you gozaimasu",
+                "script": "Latn"
+              }
+            }
+          ],
+          "usedLLM": true,
+          "detectedLanguage": {
+            "language": "en"
+          }
+        }
+      ]
+    }
+  ]
+}

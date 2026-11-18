@@ -33,7 +33,7 @@ describe("startApp", () => {
   it("boots with the official packs seeded and runs the update check over the FetchFn", async () => {
     const { app, calls } = start();
     expect(app.services.rules.get().providers.map((p) => p.ref)).toContain("official-translate/google");
-    await waitFor(() => expect(calls).toHaveLength(2));
+    await waitFor(() => expect(calls).toHaveLength(4));
   });
 
   it("renders the R7.4 dialog of the shared confirmHost inside the shell's shadow root", async () => {
@@ -60,7 +60,7 @@ describe("startApp", () => {
     });
     await user.click(await q.findByRole("button", { name: "订阅官方规则" }));
     await waitFor(() => expect(app.services.rules.get().providers.length).toBeGreaterThan(0));
-    expect(app.services.subscriptions.list().map((s) => s.id).sort()).toEqual(["official-llm", "official-translate"]);
+    expect(app.services.subscriptions.list().map((s) => s.id).sort()).toEqual(["official-llm", "official-quiz", "official-skip-ads", "official-translate"]);
   });
 
   it("does nothing inside an iframe (R1.1)", () => {

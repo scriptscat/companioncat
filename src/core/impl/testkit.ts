@@ -12,6 +12,8 @@ export function official(local?: object): Resolved {
     ...(local ? [{ pack: { schema: 1, id: "local", ...local }, local: true }] : []),
     { pack: read("official-translate"), official: true },
     { pack: read("official-llm"), official: true },
+    { pack: read("official-skip-ads"), official: true },
+    { pack: read("official-quiz"), official: true },
   ]);
 }
 

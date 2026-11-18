@@ -247,6 +247,9 @@ export function createSubscriptionManager(opts: SubscriptionOptions): Subscripti
       if (!get(id)) return false;
       storage.delete(SUB_PREFIX + id);
       storage.set(ORDER_KEY, order().filter((x) => x !== id));
+      // Remember the removal so a later seed never re-adds it, however it was first subscribed (R8.3).
+      const seeded = storage.get<string[]>(SEEDED_KEY) ?? [];
+      if (!seeded.includes(id)) storage.set(SEEDED_KEY, [...seeded, id]);
       return true;
     },
     onChange(listener) {

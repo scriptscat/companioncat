@@ -17,6 +17,64 @@ function settingKey(owner: string, name: string, def: Pick<SettingDef, "scope">,
   return `${SETTING_PREFIX}${owner}/${name}`;
 }
 
+const MODIFIERS = ["Ctrl", "Alt", "Shift", "Meta"] as const;
+type Modifier = (typeof MODIFIERS)[number];
+const FUNCTION_KEY = /^F([1-9]|1\d|2[0-4])$/;
+const NAMED_KEYS = new Set([
+  "Space", "Enter", "Tab", "Backspace", "Delete", "Insert", "Home", "End", "PageUp", "PageDown",
+  "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Minus", "Equal", "BracketLeft", "BracketRight",
+  "Backslash", "Semicolon", "Quote", "Backquote", "Comma", "Period", "Slash",
+]);
+
+export interface Hotkey {
+  mods: Record<Modifier, boolean>;
+  /** A letter `A`–`Z`, a digit, a function key or a named key, as in `KeyboardEvent.code` without `Key`/`Digit`. */
+  key: string;
+}
+
+/**
+ * Parses a stored hotkey such as `Alt+A` or `Ctrl+Shift+K`. Returns null for "" (no hotkey),
+ * unknown or repeated modifiers, unknown keys, and a key without a modifier unless it is a function key.
+ */
+export function parseHotkey(str: string): Hotkey | null {
+  const parts = str.split("+");
+  const key = parts.pop() ?? "";
+  if (!isKeyName(key)) return null;
+  const mods = { Ctrl: false, Alt: false, Shift: false, Meta: false };
+  for (const part of parts) {
+    if (!(MODIFIERS as readonly string[]).includes(part) || mods[part as Modifier]) return null;
+    mods[part as Modifier] = true;
+  }
+  if (!Object.values(mods).some(Boolean) && !FUNCTION_KEY.test(key)) return null;
+  return { mods, key };
+}
+
+function isKeyName(key: string) {
+  return /^[A-Z0-9]$/.test(key) || FUNCTION_KEY.test(key) || NAMED_KEYS.has(key);
+}
+
+/** The key name of a `KeyboardEvent.code` (`KeyA` → `A`, `Digit1` → `1`), or undefined for keys that cannot be bound. */
+export function keyName(code: string): string | undefined {
+  const name = code.startsWith("Key") ? code.slice(3) : code.startsWith("Digit") ? code.slice(5) : code;
+  return isKeyName(name) ? name : undefined;
+}
+
+/**
+ * Whether the event is the stored hotkey. Matches the physical key (`code`), so Option+A on macOS
+ * (whose `key` is `å`) still matches `Alt+A`. Modifiers must be exactly the ones stored.
+ */
+export function matchHotkey(str: string, e: Pick<KeyboardEvent, "code" | "ctrlKey" | "altKey" | "shiftKey" | "metaKey">): boolean {
+  const hk = parseHotkey(str);
+  if (!hk) return false;
+  return (
+    keyName(e.code) === hk.key &&
+    e.ctrlKey === hk.mods.Ctrl &&
+    e.altKey === hk.mods.Alt &&
+    e.shiftKey === hk.mods.Shift &&
+    e.metaKey === hk.mods.Meta
+  );
+}
+
 /** Whether `value` is a legal stored value for `def` (type changed or option gone -> false). */
 function isValidSetting(def: SettingDef, value: unknown): boolean {
   switch (def.type) {
@@ -30,6 +88,8 @@ function isValidSetting(def: SettingDef, value: unknown): boolean {
       return typeof value === "string";
     case "engines":
       return Array.isArray(value) && value.every((v) => typeof v === "string");
+    case "hotkey":
+      return typeof value === "string" && (value === "" || parseHotkey(value) !== null);
     case "number":
       return (
         typeof value === "number" &&

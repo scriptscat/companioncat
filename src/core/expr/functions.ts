@@ -1,7 +1,7 @@
 import { type Environment, EvaluationError } from "@marcbachmann/cel-js";
 import { md5 } from "js-md5";
 import { detectLang, languageName, LANGUAGES } from "../languages";
-import { fromCel, stringify, toCel } from "./convert";
+import { fromCel, stringify, toCel, toJson } from "./convert";
 
 /**
  * The R8.1 whitelist beyond CEL's standard library (has/size/macros/methods).
@@ -268,7 +268,7 @@ const FUNCTIONS: [signature: string, handler: Handler][] = [
   ["uuid(): string", uuid],
   ["random(): double", () => Math.random()],
   ["random(int, int): int", randomInt],
-  ["json(dyn): string", (v: unknown) => JSON.stringify(fromCel(v)) ?? "null"],
+  ["json(dyn): string", (v: unknown) => toJson(fromCel(v)) ?? "null"],
   ["extractJson(string): dyn", extractJson],
   ["match(string, string): list<string>", match],
   ["langName(string): string", languageName],

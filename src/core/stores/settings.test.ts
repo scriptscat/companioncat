@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createGmStorageFake } from "../../../test/fakes/gm-storage";
 import { createStorage } from "../../platform/storage";
 import { makeResolved } from "./fixtures";
-import { createSettingsStore } from "./settings";
+import { createSettingsStore, matchHotkey, parseHotkey } from "./settings";
 
 const defs = {
   on: { type: "boolean", title: "on", default: true },
@@ -148,5 +148,45 @@ describe("cross-tab change events (R1.8)", () => {
     a.onChange((key, o, n, remote) => events.push([key, o, n, remote]));
     b.delete("cc:x");
     expect(events).toEqual([["cc:x", 1, undefined, true]]);
+  });
+});
+
+describe("hotkey setting (R7.1)", () => {
+  const hk = { type: "hotkey", title: "快捷键", default: "Alt+A" } as const;
+
+  it("stores an empty string as no hotkey, not as the default", () => {
+    const { store } = setup({ hk });
+    store.set("p/translate", "hk", hk, "");
+    expect(store.get("p/translate", "hk", hk)).toBe("");
+  });
+
+  it("accepts a well-formed combo or the empty string and rejects the rest", () => {
+    const { store } = setup({ hk });
+    for (const ok of ["", "Alt+A", "Ctrl+Shift+K", "Meta+1", "F2", "Shift+F12", "Alt+ArrowUp"])
+      expect(store.set("p/translate", "hk", hk, ok)).toBe(true);
+    for (const bad of ["A", "Shift", "Alt+", "Alt+Foo", "Alt+Alt+A", "Ctrl+Ctrl+A", "Hyper+A", " Alt+A", "Alt + A", "F25", 1])
+      expect(store.set("p/translate", "hk", hk, bad)).toBe(false);
+  });
+});
+
+describe("parseHotkey / matchHotkey (R7.1)", () => {
+  const ev = (init: Partial<KeyboardEvent>) => ({ code: "", key: "", ctrlKey: false, altKey: false, shiftKey: false, metaKey: false, ...init }) as KeyboardEvent;
+
+  it("parses modifiers and the key, and returns null for what it cannot bind", () => {
+    expect(parseHotkey("Alt+A")).toEqual({ mods: { Ctrl: false, Alt: true, Shift: false, Meta: false }, key: "A" });
+    expect(parseHotkey("Ctrl+Shift+F5")?.key).toBe("F5");
+    expect(parseHotkey("F5")?.key).toBe("F5");
+    expect(parseHotkey("")).toBeNull();
+    expect(parseHotkey("A")).toBeNull();
+    expect(parseHotkey("Alt+")).toBeNull();
+  });
+
+  it("matches by physical key, so Option+A on macOS (key 'å') still matches Alt+A", () => {
+    expect(matchHotkey("Alt+A", ev({ code: "KeyA", key: "å", altKey: true }))).toBe(true);
+    expect(matchHotkey("Alt+A", ev({ code: "KeyA", key: "a" }))).toBe(false);
+    expect(matchHotkey("Alt+A", ev({ code: "KeyA", key: "A", altKey: true, shiftKey: true }))).toBe(false);
+    expect(matchHotkey("Alt+A", ev({ code: "KeyB", altKey: true }))).toBe(false);
+    expect(matchHotkey("F2", ev({ code: "F2", key: "F2" }))).toBe(true);
+    expect(matchHotkey("", ev({ code: "KeyA", altKey: true }))).toBe(false);
   });
 });

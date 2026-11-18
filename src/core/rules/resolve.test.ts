@@ -330,7 +330,7 @@ describe("partial failure (R2.6)", () => {
     expect(reasons(entryOf(r, "community/f.missing-view"))).toEqual(["视图 community/ghost 找不到"]);
     expect(reasons(entryOf(r, "community/f.bad-view"))).toEqual(["视图 community/bad 已停用（表达式错误：变量 vars 不能在「视图模板」里使用）"]);
     expect(entryOf(r, "community/f.ok")).toMatchObject({ enabled: true });
-    expect(entryOf(r, "community/f.ok")!.def.present.view).toEqual({ use: "community/good", with: { x: "{{ vars.results }}" } });
+    expect(entryOf(r, "community/f.ok")!.def.present!.view).toEqual({ use: "community/good", with: { x: "{{ vars.results }}" } });
 
     const bad = r.views.find((v) => v.ref === "community/bad")!;
     expect(bad.enabled).toBe(false);

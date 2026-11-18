@@ -127,6 +127,37 @@ describe("Microsoft via the Bing web translator (R5.2 steps with cache, match, f
   });
 });
 
+describe("Microsoft from a mainland network: www.bing.com/translator → 302 cn.bing.com (一期 R5.2, R11.1)", () => {
+  const WWW_PAGE = "https://www.bing.com/translator";
+  const CN_API = "https://cn.bing.com/ttranslatev3?isVertical=1&IG=F2E6F533FA1F44218DE78FA8AEEDD4EB&IID=translator.5028";
+  const form = (req: SentRequest) => Object.fromEntries(new URLSearchParams(req.data));
+  const [page, zh, ja] = recording("microsoft-translate-cn");
+
+  it("posts ttranslatev3 to the host the page landed on, with that page's IG / key / token, and reuses the cached step", async () => {
+    fake = installGmHttp([page!, zh!, ja!]);
+    const ctx = ctxFor(rules, { stepCache: createStepCache() });
+    const a = await executeImpl(microsoft, "translate", { texts: ["Hello, world", "Good morning"], to: "zh-CN" }, ctx);
+    const b = await executeImpl(microsoft, "translate", { texts: ["Good morning"], from: "en", to: "ja" }, ctx);
+    expect(a).toEqual({ texts: ["你好，世界", "早上好"] });
+    expect(b).toEqual({ texts: ["おはようございます"] });
+    expect(fake.calls.map((c) => `${c.method} ${c.url}`)).toEqual([`GET ${WWW_PAGE}`, `POST ${CN_API}`, `POST ${CN_API}`]);
+    const sent = { token: "2GJMMXeYpdSOM05ZWImu8MD9uvuAZuV0", key: "1794915652245" };
+    expect(form(fake.calls[1]!)).toEqual({ fromLang: "auto-detect", to: "zh-Hans", text: "Hello, world\nGood morning", ...sent });
+    expect(form(fake.calls[2]!)).toEqual({ fromLang: "en", to: "ja", text: "Good morning", ...sent });
+    expect(ctx.trace).toContainEqual(expect.objectContaining({ type: "cache", step: "page", hit: true }));
+  });
+
+  it("still refuses the redirect when the engine does not declare cn.bing.com", async () => {
+    fake = installGmHttp([page!]);
+    const wwwOnly = testProvider({ ...microsoft.def, hosts: ["www.bing.com"] });
+    await expect(executeImpl(wwwOnly, "translate", { texts: ["Good morning"], to: "ja" }, ctxFor(rules))).rejects.toMatchObject({
+      type: "hostUndeclared",
+      detail: { host: "cn.bing.com", step: "page" },
+    });
+    expect(fake.calls).toHaveLength(1);
+  });
+});
+
 /** An engine whose service upper-cases every text it gets. */
 function echo(batch: { maxItems?: number; maxChars?: number; join?: string }) {
   const join = batch.join !== undefined;

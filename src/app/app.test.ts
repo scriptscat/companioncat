@@ -9,7 +9,7 @@ import { LOCAL_RULES_KEY } from "../pages/rules/RulesPage";
 import { composeApp } from "./app";
 import { gmFetch } from "./fetch";
 
-const OFFICIAL = ["official-llm", "official-translate"];
+const OFFICIAL = ["official-llm", "official-quiz", "official-skip-ads", "official-translate"];
 
 const pack = (id: string, version = "1.0.0", host = "fake.test", secrets = false) => ({
   schema: 1,
@@ -114,7 +114,7 @@ describe("composeApp: the rules source", () => {
     s.rules.subscribe(seen);
     const a = s.rules.get();
     await app.start();
-    expect(net.calls.length).toBe(2);
+    expect(net.calls.length).toBe(4);
     expect(s.subscriptions.get("official-translate")!.lastChecked).toBeDefined();
     expect(s.rules.get()).toBe(a);
     expect(seen).not.toHaveBeenCalled();

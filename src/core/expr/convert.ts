@@ -1,4 +1,6 @@
+import { EvaluationError } from "@marcbachmann/cel-js";
 import { UnsignedInt } from "@marcbachmann/cel-js/evaluator";
+import { isElementHandle } from "./page";
 
 const isPlainObject = (v: unknown): v is Record<string, unknown> => {
   if (v === null || typeof v !== "object") return false;
@@ -52,13 +54,29 @@ export function fromCel(v: unknown): unknown {
   return v;
 }
 
+/** Element handles never become text, JSON included (R1.4). */
+export class HandleTextError extends EvaluationError {
+  constructor() {
+    super("元素不能直接变成文字，请用 text() 或 describe()");
+  }
+}
+
+/** JSON.stringify that refuses element handles. */
+export function toJson(v: unknown): string | undefined {
+  return JSON.stringify(v, (_k, val: unknown) => {
+    if (isElementHandle(val)) throw new HandleTextError();
+    return val;
+  });
+}
+
 /** How a (converted) value is written into a mixed template. */
 export function stringify(v: unknown): string {
+  if (isElementHandle(v)) throw new HandleTextError();
   if (v === null || v === undefined) return "";
   if (typeof v === "string") return v;
   if (typeof v === "number" || typeof v === "boolean") return String(v);
   if (v instanceof Uint8Array) return new TextDecoder().decode(v);
   if (v instanceof Date) return v.toISOString();
-  if (Array.isArray(v) || isPlainObject(v)) return JSON.stringify(v);
+  if (Array.isArray(v) || isPlainObject(v)) return toJson(v) ?? "";
   return String(v);
 }

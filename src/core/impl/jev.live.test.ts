@@ -41,4 +41,25 @@ describe.skipIf(!key)("Jev live smoke", () => {
     expect(Object.keys((contract.def.sample as { options: object }).options)).toContain((out as { choice: string }).choice);
     expect((out as { confidence: number }).confidence).toBeGreaterThanOrEqual(0);
   });
+
+  it("answers a choose shaped like the skip-ads ask (R4, R8.2)", { timeout: 30_000 }, async () => {
+    const r = official();
+    const ctx = ctxFor(r, { secrets: { apiKey: key! } });
+    const options = { "跳过广告 5s": "跳过广告 5s", "音量": "音量", "都不是": "都不是" };
+    const input = {
+      state: '<div class="player"><video></video><div class="ad-overlay">广告 <button>跳过广告 5s</button></div><button>音量</button></div>',
+      question: "哪个是跳过或关闭广告的按钮？都不是就选「都不是」。",
+      options,
+    };
+    let failure: unknown;
+    const out = await executeImpl(providerOf(r, "official-llm/jev"), "choose", input, ctx).catch((e: unknown) => {
+      failure = e;
+    });
+    expect(JSON.stringify(ctx.trace).includes(key!)).toBe(false);
+    expect(failure && { type: (failure as { type?: string }).type, message: (failure as Error).message }).toBeUndefined();
+    const { choice, confidence } = out as { choice: string; confidence: number };
+    expect(Object.keys(options)).toContain(choice);
+    expect(confidence).toBeGreaterThanOrEqual(0);
+    expect(confidence).toBeLessThanOrEqual(1);
+  });
 });

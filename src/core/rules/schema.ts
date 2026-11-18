@@ -46,8 +46,17 @@ const CONTAINERS = new Set([
   "dependentSchemas",
 ]);
 
-function describe(unit: { path: string; keyword: string; message: string }): string {
+interface Unit {
+  path: string;
+  /** Keyword location in the schema. */
+  at: string;
+  keyword: string;
+  message: string;
+}
+
+function describe(unit: Unit): string {
   const { keyword, message } = unit;
+  if (keyword === "anyOfRequired") return message;
   if (keyword === "required") {
     const m = /property "(.+)"/.exec(message);
     return `缺少必填字段 ${m?.[1] ?? ""}`.trim();
@@ -61,20 +70,52 @@ function describe(unit: { path: string; keyword: string; message: string }): str
       // fall through to the validator's own words
     }
   }
+  if (keyword === "dependentRequired") {
+    const m = /has "(.+)" but does not have "(.+)"/.exec(message);
+    if (m) return `写了 ${m[1]} 就要写 ${m[2]}`;
+  }
   if (keyword === "const") return "取值不对";
   if (keyword === "pattern") return "格式不对";
   return message;
 }
 
+// A `required` inside an anyOf branch: one of several fields is needed.
+const ONE_OF_REQUIRED = /^(.*)\/anyOf\/\d+\/required$/;
+
+/** Merges the `required` errors of one anyOf into "write one of a、b、c". */
+function mergeAlternatives(units: Unit[]): Unit[] {
+  const groups = new Map<string, Unit[]>();
+  for (const u of units) {
+    const anyOf = u.keyword === "required" ? ONE_OF_REQUIRED.exec(u.at)?.[1] : undefined;
+    if (anyOf === undefined) continue;
+    const key = `${u.path}\n${anyOf}`;
+    groups.set(key, [...(groups.get(key) ?? []), u]);
+  }
+  const replaced = new Map<Unit, Unit | null>();
+  for (const [first, ...rest] of groups.values()) {
+    if (!first || rest.length === 0) continue;
+    const fields = [first, ...rest].map((u) => /property "(.+)"/.exec(u.message)?.[1] ?? "");
+    replaced.set(first, { ...first, keyword: "anyOfRequired", message: `要写其中一个字段：${fields.join("、")}` });
+    for (const u of rest) replaced.set(u, null);
+  }
+  return units.flatMap((u) => {
+    const r = replaced.get(u);
+    return r === undefined ? [u] : r === null ? [] : [r];
+  });
+}
+
 /**
  * Reduces cfworker's error tree to the problems a person can act on: container errors are
- * dropped, and type mismatches left over from anyOf branches are dropped when the value
- * matched another branch deeper down, or merged into one "should be A or B" message.
+ * dropped, alternatives of one anyOf are merged into one "write one of" message, and type
+ * mismatches left over from anyOf branches are dropped when the value matched another
+ * branch deeper down, or merged into one "should be A or B" message.
  */
 function issues(errors: OutputUnit[]): SchemaIssue[] {
-  const units = errors
-    .map((e) => ({ path: e.instanceLocation.replace(/^#/, ""), keyword: e.keyword, message: e.error }))
-    .filter((u) => !CONTAINERS.has(u.keyword));
+  const units = mergeAlternatives(
+    errors
+      .map((e) => ({ path: e.instanceLocation.replace(/^#/, ""), at: e.keywordLocation, keyword: e.keyword, message: e.error }))
+      .filter((u) => !CONTAINERS.has(u.keyword)),
+  );
   const deeper = (p: string) => units.some((o) => o.path.startsWith(`${p}/`));
   const out: SchemaIssue[] = [];
   const typesAt = new Map<string, string[]>();

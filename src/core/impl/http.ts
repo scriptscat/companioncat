@@ -94,12 +94,23 @@ async function runOnce(run: Run, def: HttpDef, input: unknown): Promise<unknown>
   }
 }
 
+/** Where a step ended up after redirects, as `landed.<step id>` in later requests and its own output. */
+interface Landed {
+  url: string;
+  host: string;
+}
+
 async function runRequest(run: Run, def: HttpDef, input: unknown, cached: string[]): Promise<unknown> {
   const steps: Record<string, unknown> = {};
+  const landed: Record<string, Landed> = {};
   const scope = () => ({ input, options: run.options, secret: run.secret, steps });
-  for (const step of def.steps ?? []) steps[step.id] = await runStep(run, step, scope(), cached);
+  for (const step of def.steps ?? []) {
+    const done = await runStep(run, step, { ...scope(), landed }, cached);
+    steps[step.id] = done.value;
+    landed[step.id] = done.landed;
+  }
   const base = scope();
-  const req = await buildRequest(run, def.request, base, MAIN);
+  const req = await buildRequest(run, def.request, { ...base, landed }, MAIN);
   await allowHost(run, req.url, MAIN);
   if (def.response === "sse") return runSse(run, def, req, base);
 
@@ -181,7 +192,12 @@ async function runSse(run: Run, def: HttpDef, req: BuiltRequest, base: Scope): P
   return render(run, def.output, { ...base, response: last, stream }, POSITIONS.output, "badOutput", { status: res.status });
 }
 
-async function runStep(run: Run, step: HttpStepDef, scope: Scope, cached: string[]): Promise<unknown> {
+interface StepResult {
+  value: unknown;
+  landed: Landed;
+}
+
+async function runStep(run: Run, step: HttpStepDef, scope: Scope & { landed: Record<string, Landed> }, cached: string[]): Promise<StepResult> {
   const req = await buildRequest(run, step.request, scope, step.id);
   const cache = step.cache ? run.ctx.stepCache : undefined;
   const key = cache && md5(JSON.stringify([run.provider.ref, step.id, req.method, req.url, req.headers, req.body ?? null]));
@@ -189,7 +205,7 @@ async function runStep(run: Run, step: HttpStepDef, scope: Scope, cached: string
   const hit = key ? cache!.get(key) : undefined;
   if (hit) {
     trace(run, { type: "cache", step: step.id, hit: true });
-    return hit.value;
+    return hit.value as StepResult;
   }
   await allowHost(run, req.url, step.id);
   const res = await send(run, req, step.id);
@@ -199,12 +215,21 @@ async function runStep(run: Run, step: HttpStepDef, scope: Scope, cached: string
   const type = statusErrorType(res.status);
   if (type) throw fail(run, type, undefined, { status: res.status, raw: res.text, step: step.id });
   if (!parsed.ok) throw fail(run, "badOutput", "返回的内容不是 JSON", { status: res.status, raw: res.text, step: step.id });
+  const landed = { url: res.finalUrl, host: hostOf(res.finalUrl) };
   const value =
     step.output === undefined
       ? parsed.value
-      : await render(run, step.output, { ...scope, response: parsed.value }, POSITIONS.stepOutput, "badOutput", { step: step.id });
-  if (key) cache!.set(key, value, step.cache!);
-  return value;
+      : await render(
+          run,
+          step.output,
+          { ...scope, landed: { ...scope.landed, [step.id]: landed }, response: parsed.value },
+          POSITIONS.stepOutput,
+          "badOutput",
+          { step: step.id },
+        );
+  const result = { value, landed };
+  if (key) cache!.set(key, result, step.cache!);
+  return result;
 }
 
 function parseBody(format: "json" | "text" | "sse", text: string): { ok: true; value: unknown } | { ok: false } {

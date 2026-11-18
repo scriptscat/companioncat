@@ -116,6 +116,36 @@ describe("checkLocalRules (R3.2)", () => {
     ]);
   });
 
+  it("allows page functions only in an automation entry's triggers and run (R1.4, R1.7)", () => {
+    const text = `${head}
+  "features": [{
+    "id": "demo", "name": "示例", "match": ["*://*/*"],
+    "entries": [{
+      "id": "skip", "name": "跳过广告",
+      "triggers": [{ "on": "appear", "selector": "button", "enabled": "{{ visible(trigger.element) }}" }],
+      "run": [{ "find": "button", "where": "{{ contains(text(item), '跳过') }}", "as": "b" },
+              { "act": "click", "target": "{{ vars.b }}", "describe": "{{ describe(vars.b) }}" }]
+    }, {
+      "id": "sel", "name": "划词",
+      "triggers": [{ "on": "selection" }],
+      "run": [{ "set": { "to": "{{ text(vars.b) }}" } }],
+      "present": { "surface": { "type": "near-selection" }, "view": { "type": "text", "value": "{{ vars.to }}" } }
+    }]
+  }]
+}`;
+    const result = checkLocalRules(text);
+    expect(result.canSave).toBe(true);
+    expect(result.problems).toEqual([
+      expect.objectContaining({
+        severity: "error",
+        line: 15,
+        path: "/features/0/entries/1/run/0/set/to",
+        message: expect.stringContaining("text()"),
+        expr: { template: "{{ text(vars.b) }}", source: " text(vars.b) ", start: 3, end: 15 },
+      }),
+    ]);
+  });
+
   it("lists inheritance errors against the subscriptions, but still allows saving", () => {
     const text = `${head}
   "providers": [

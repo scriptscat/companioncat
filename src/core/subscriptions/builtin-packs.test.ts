@@ -9,7 +9,7 @@ import fs from "node:fs";
 
 describe("virtual:builtin-packs", () => {
   it("bakes the packs in rules/packs with a commit marker", () => {
-    expect(packs.map((p: any) => p.id).sort()).toEqual(["official-llm", "official-translate"]);
+    expect(packs.map((p: any) => p.id).sort()).toEqual(["official-llm", "official-quiz", "official-skip-ads", "official-translate"]);
     for (const p of packs) expect(validatePack(p).ok).toBe(true);
     expect(commit).toMatch(/^[0-9a-f]{7,40}$/);
     const onDisk = JSON.parse(fs.readFileSync("rules/packs/official-llm.json", "utf8"));
@@ -27,6 +27,6 @@ describe("virtual:builtin-packs", () => {
   it("seeds a manager end to end", () => {
     const mgr = createSubscriptionManager({ storage: createStorage(createGmStorageFake().tab()), fetch: async () => ({ status: 404, headers: {}, text: "" }) });
     mgr.seed({ commit, packs });
-    expect(mgr.list().map((s) => s.id).sort()).toEqual(["official-llm", "official-translate"]);
+    expect(mgr.list().map((s) => s.id).sort()).toEqual(["official-llm", "official-quiz", "official-skip-ads", "official-translate"]);
   });
 });

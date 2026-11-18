@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it } from "vitest";
 import { installGmHttp, recording, type FakeGm } from "../../../test/fakes/gm-http";
 import { CallError, ERROR_TYPES } from "../errors";
+import { checkTemplate, type Position } from "../expr";
+import { POSITIONS } from "../rules";
 import { mask } from "../stores";
 import { BUILTIN_UNSUPPORTED, createStepCache, effectiveOptions, executeImpl, masker, resolveHosts, unavailableReason } from "./index";
 import { ctxFor, official, providerOf, testProvider } from "./testkit";
@@ -152,6 +154,61 @@ describe("redirects (R5.1, R5.2)", () => {
     await expect(executeImpl(streaming, "chat", hello, ctx)).rejects.toMatchObject({ type: "hostUndeclared", detail: { host: "evil.test" } });
     expect(ctx.deltas).toEqual([]);
     expect(JSON.stringify(ctx.trace)).not.toContain("planted");
+  });
+
+  describe("a step's final URL and host as landed.<id> (一期 R5.2)", () => {
+    const landing = testProvider({
+      hosts: ["a.test", "b.test"],
+      implements: {
+        chat: {
+          http: {
+            steps: [{ id: "t", request: { url: "https://a.test/token" }, output: { token: "{{ response.token }}", from: "{{ landed.t.url }}" }, cache: 600 }],
+            request: { url: "https://{{ landed.t.host }}/c", headers: { "X-Token": "{{ steps.t.token }}", "X-From": "{{ steps.t.from }}" } },
+            response: "json",
+            output: { text: "{{ response.text }}" },
+          },
+        },
+      },
+    });
+
+    it("lets the step's output and later requests read where the step landed, also on a cache hit", async () => {
+      fake = installGmHttp([
+        { url: "https://a.test/token", finalUrl: "https://b.test/token?r=1", json: { token: "T" } },
+        { url: "https://b.test/c", json: { text: "ok" }, repeat: true },
+      ]);
+      const ctx = ctxFor(rules, { stepCache: createStepCache() });
+      await expect(executeImpl(landing, "chat", hello, ctx)).resolves.toEqual({ text: "ok" });
+      await expect(executeImpl(landing, "chat", hello, ctx)).resolves.toEqual({ text: "ok" });
+      expect(fake.calls.map((c) => c.url)).toEqual(["https://a.test/token", "https://b.test/c", "https://b.test/c"]);
+      for (const c of fake.calls.slice(1)) expect(c.headers).toMatchObject({ "X-Token": "T", "X-From": "https://b.test/token?r=1" });
+      expect(ctx.trace).toContainEqual(expect.objectContaining({ type: "cache", step: "t", hit: true }));
+    });
+
+    it("is the request URL when there was no redirect", async () => {
+      fake = installGmHttp([
+        { url: "https://a.test/token", json: { token: "T" } },
+        { url: "https://a.test/c", json: { text: "ok" } },
+      ]);
+      await expect(executeImpl(landing, "chat", hello, ctxFor(rules))).resolves.toEqual({ text: "ok" });
+      expect(fake.calls[1]!.headers["X-From"]).toBe("https://a.test/token");
+    });
+
+    it("still refuses a step redirected to an undeclared host", async () => {
+      fake = installGmHttp([{ url: "https://a.test/token", finalUrl: "https://evil.test/token", json: { token: "planted" } }]);
+      const ctx = ctxFor(rules);
+      await expect(executeImpl(landing, "chat", hello, ctx)).rejects.toMatchObject({ type: "hostUndeclared", detail: { host: "evil.test", step: "t" } });
+      expect(fake.calls).toHaveLength(1);
+      expect(JSON.stringify(ctx.trace)).not.toContain("planted");
+    });
+
+    it("is allowed in engine requests and step output only", () => {
+      const at = (pos: Position) => checkTemplate("{{ landed.t.host }}", pos).map((e) => e.message);
+      expect(at(POSITIONS.request)).toEqual([]);
+      expect(at(POSITIONS.stepOutput)).toEqual([]);
+      for (const pos of [POSITIONS.hosts, POSITIONS.output, POSITIONS.errors, POSITIONS.stream, POSITIONS.run, POSITIONS.bridgeInput]) {
+        expect(at(pos)).toEqual([expect.stringContaining("landed")]);
+      }
+    });
   });
 
   it("accepts a redirect to another declared host, asking to confirm it", async () => {

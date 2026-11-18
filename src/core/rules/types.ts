@@ -6,6 +6,13 @@
 
 export type JsonObject = Record<string, unknown>;
 
+type KeysOf<U> = U extends unknown ? keyof U : never;
+/**
+ * A union whose members each forbid the keys only other members have, matching the
+ * schema's "write only one kind": reading any member's key is allowed and narrows.
+ */
+type Exclusive<U, K extends PropertyKey = KeysOf<U>> = U extends unknown ? U & { [P in Exclude<K, keyof U>]?: never } : never;
+
 export type ErrorType =
   | "network"
   | "timeout"
@@ -128,7 +135,7 @@ export interface ProviderDef {
 }
 
 export interface SettingDef {
-  type: "boolean" | "enum" | "language" | "engine" | "engines" | "string" | "number";
+  type: "boolean" | "enum" | "language" | "engine" | "engines" | "string" | "number" | "hotkey";
   title: string;
   description?: string;
   default?: unknown;
@@ -140,30 +147,155 @@ export interface SettingDef {
   min?: number;
   step?: number;
   placeholder?: string;
+  /** number only: shown and entered as a percentage (0.85 → 85%). */
+  format?: "percent";
 }
 
-export interface TriggerDef {
-  on: "selection" | "command" | "page-load";
+interface TriggerBase {
   enabled?: boolean | string;
+}
+
+export interface SelectionTrigger extends TriggerBase {
+  on: "selection";
   confirm?: string;
   ignoreIn?: string[];
   minLength?: number;
   maxLength?: number;
-  title?: string;
+}
+
+/** A bubble button, a hotkey when `hotkey` is set, and a ScriptCat menu item. */
+export interface CommandTrigger extends TriggerBase {
+  on: "command";
+  title: string;
+  /** A key combination such as `Alt+A`, or a template reading a `hotkey` setting. */
   hotkey?: string;
   quick?: boolean;
 }
 
-export interface RunStepDef {
-  set?: JsonObject;
-  call?: string;
-  strategy?: "first" | "race" | "all" | "vote";
+/** Runs once after the page has loaded. */
+export interface PageLoadTrigger extends TriggerBase {
+  on: "page-load";
+}
+
+/** Runs when an element matching `selector` newly appears (not ones present at load). */
+export interface AppearTrigger extends TriggerBase {
+  on: "appear";
+  selector: string;
+  /** Default 300. */
+  debounceMs?: number;
+}
+
+export type TriggerDef = Exclusive<SelectionTrigger | CommandTrigger | PageLoadTrigger | AppearTrigger>;
+
+export type Strategy = "first" | "race" | "all" | "vote";
+
+export interface SetStep {
+  set: JsonObject;
+}
+
+export interface CallStep {
+  call: string;
+  strategy?: Strategy;
   engines?: string[] | string;
-  input?: unknown;
+  input: unknown;
   stream?: boolean | string;
   batch?: "blocks";
   as?: string;
 }
+
+/** Visible elements matching `find` (a CSS selector or `auto:questions`), as a list of handles in `vars.<as>`. */
+export interface FindStep {
+  find: string;
+  /** Template: the element to search inside. */
+  within?: string;
+  /** Template: keeps the elements for which it is true. */
+  where?: string;
+  /** All matches instead of the first. */
+  all?: boolean;
+  as: string;
+}
+
+export type Below = "ask" | "hint" | "skip";
+
+interface ActOnTarget {
+  /** Template: the element handle(s) to act on. */
+  target: string;
+  /** 0–1 or a template; usually an ask result's confidence. */
+  confidence?: number | string;
+  /** Without it the act always runs; below it `below` decides. */
+  minConfidence?: number | string;
+  /** A Below value or a template. */
+  below?: Below | string;
+  /** Human wording for the action log and ask-first. */
+  describe?: string;
+}
+
+export interface TargetAct extends ActOnTarget {
+  act: "click" | "scroll" | "focus";
+}
+
+export interface InputAct extends ActOnTarget {
+  act: "fill" | "select";
+  value: string;
+}
+
+export interface CheckAct extends ActOnTarget {
+  act: "check";
+  /** Default true (checked). */
+  value?: boolean | string;
+}
+
+/** Waits `ms`, or until `selector` appears (giving up after `timeoutMs`). */
+export interface WaitAct {
+  act: "wait";
+  ms?: number | string;
+  selector?: string;
+  timeoutMs?: number;
+  describe?: string;
+}
+
+export type ActStep = TargetAct | InputAct | CheckAct | WaitAct;
+export type ActKind = ActStep["act"];
+
+/** Invokes a contract (usually choose or chat) through the invoke pipeline; the result carries confidence. */
+export interface AskStep {
+  ask: string;
+  engine?: string;
+  engines?: string[] | string;
+  /** A Strategy or a template. */
+  strategy?: Strategy | string;
+  input: unknown;
+  as?: string;
+}
+
+export interface IfStep {
+  if: boolean | string;
+  then: RunStepDef[];
+  else?: RunStepDef[];
+}
+
+/** Runs `steps` for each item of the list (current one is `item`). */
+export interface RepeatEachStep {
+  repeat: string;
+  max?: number;
+  steps: RunStepDef[];
+}
+
+/** Runs `steps` until `until` holds, at most `max` times. */
+export interface RepeatUntilStep {
+  repeat: true;
+  until: string;
+  max: number;
+  steps: RunStepDef[];
+}
+
+export type RepeatStep = RepeatEachStep | RepeatUntilStep;
+
+export interface StopStep {
+  stop: true;
+}
+
+export type RunStepDef = Exclusive<SetStep | CallStep | FindStep | ActStep | AskStep | IfStep | RepeatStep | StopStep>;
 
 export interface SelectDef {
   blocks?: "auto" | string[] | string;
@@ -173,7 +305,8 @@ export interface SelectDef {
 }
 
 export interface SurfaceDef {
-  type: "near-selection" | "bubble" | "inline-after";
+  /** `page-card`: a result card on the page, for automation entries. */
+  type: "near-selection" | "bubble" | "inline-after" | "page-card";
   pinnable?: boolean;
   closeOn?: ("escape" | "outside-click" | "new-selection")[];
   target?: "block";
@@ -230,7 +363,13 @@ export interface EntryDef {
   toggle?: boolean;
   select?: SelectDef;
   run: RunStepDef[];
-  present: { surface: SurfaceDef; view: ViewUseDef | ComponentDef };
+  /** Optional only on automation entries (run has find/act/ask/if/repeat/stop). */
+  present?: PresentDef;
+}
+
+export interface PresentDef {
+  surface: SurfaceDef;
+  view: ViewUseDef | ComponentDef;
 }
 
 export interface FeatureDef {

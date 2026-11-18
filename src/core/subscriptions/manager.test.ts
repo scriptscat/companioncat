@@ -285,12 +285,12 @@ describe("manual management (R2.4)", () => {
 });
 
 describe("built-in snapshot (R2.2)", () => {
-  const snap = (v: string, commit = "c1") => ({ commit, packs: [pack("official-translate", v), pack("official-llm", v)] });
+  const snap = (v: string, commit = "c1") => ({ commit, packs: [pack("official-translate", v), pack("official-llm", v), pack("official-skip-ads", v), pack("official-quiz", v)] });
 
   it("subscribes both official packs on first run without any network", () => {
     const s = setup();
     s.mgr.seed(snap("1"));
-    expect(s.mgr.list().map((x) => x.id)).toEqual(["official-translate", "official-llm"]);
+    expect(s.mgr.list().map((x) => x.id)).toEqual(["official-translate", "official-llm", "official-skip-ads", "official-quiz"]);
     expect(s.mgr.get("official-llm")).toMatchObject({ official: true, builtin: "1", urls: officialUrls("official-llm"), goodVersion: "1" });
     expect(s.mgr.sources().every((x) => x.official)).toBe(true);
     expect(s.net.calls).toEqual([]);
@@ -317,7 +317,28 @@ describe("built-in snapshot (R2.2)", () => {
     s.mgr.seed(snap("1"));
     s.mgr.unsubscribe("official-llm");
     s.make().seed(snap("1"));
-    expect(s.mgr.list().map((x) => x.id)).toEqual(["official-translate"]);
+    expect(s.mgr.list().map((x) => x.id)).toEqual(["official-translate", "official-skip-ads", "official-quiz"]);
+  });
+
+  it("never re-adds a pack the user removed, even one first subscribed by address before any seed record (R8.3)", async () => {
+    const s = setup({ "https://a/llm.json": () => ok(pack("official-llm", "1")) });
+    await s.mgr.subscribe("https://a/llm.json");
+    s.mgr.unsubscribe("official-llm");
+    s.make().seed(snap("1"));
+    expect(s.mgr.list().map((x) => x.id)).toEqual(["official-translate", "official-skip-ads", "official-quiz"]);
+  });
+
+  it("on upgrade adds a new official pack once, appended after the user's order and other subscriptions (R8.3)", async () => {
+    const s = setup({ "https://a/mine.json": () => ok(pack("mine", "1")) });
+    const old = (v: string) => ({ commit: "c", packs: [pack("official-translate", v), pack("official-llm", v)] });
+    s.mgr.seed(old("1"));
+    await s.mgr.subscribe("https://a/mine.json");
+    s.mgr.reorder(["mine", "official-llm", "official-translate"]);
+    s.make().seed(snap("1", "c2"));
+    expect(s.mgr.list().map((x) => x.id)).toEqual(["mine", "official-llm", "official-translate", "official-skip-ads", "official-quiz"]);
+    s.mgr.unsubscribe("official-quiz");
+    s.make().seed(snap("1", "c3"));
+    expect(s.mgr.list().map((x) => x.id)).not.toContain("official-quiz");
   });
 
   it("keeps the order and a newer cached copy when the snapshot is not newer", async () => {
@@ -328,7 +349,7 @@ describe("built-in snapshot (R2.2)", () => {
     s.make().seed(snap("2026.11.16"));
     s.make().seed(snap("2026.12.1", "c2"));
     expect(s.mgr.get("official-llm")?.pack).toMatchObject({ version: "2026.12.1" });
-    expect(s.mgr.list().map((x) => x.id)).toEqual(["official-llm", "official-translate"]);
+    expect(s.mgr.list().map((x) => x.id)).toEqual(["official-llm", "official-translate", "official-skip-ads", "official-quiz"]);
   });
 
   it("replaces the cached copy on upgrade only when the snapshot is newer", () => {
@@ -339,7 +360,7 @@ describe("built-in snapshot (R2.2)", () => {
     expect(s.mgr.get("official-llm")?.pack).toMatchObject({ version: "2026.9.5" });
     s.make().seed(snap("2026.11.16", "c2")); // numeric compare: 11 > 9
     expect(s.mgr.get("official-llm")).toMatchObject({ pack: { version: "2026.11.16" }, builtin: "2026.11.16", goodVersion: "2026.11.16" });
-    expect(s.mgr.list().map((x) => x.id)).toEqual(["official-llm", "official-translate"]);
+    expect(s.mgr.list().map((x) => x.id)).toEqual(["official-llm", "official-translate", "official-skip-ads", "official-quiz"]);
     s.make().seed(snap("2026.2.1", "c0")); // older snapshot: ignored
     expect(s.mgr.get("official-llm")?.pack).toMatchObject({ version: "2026.11.16" });
   });

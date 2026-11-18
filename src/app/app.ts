@@ -11,6 +11,7 @@ import {
   type FetchFn,
   type SubscriptionManager,
 } from "../core/subscriptions";
+import { watchTeachRecords } from "../features/teach/store";
 import { autoUpdateEnabled, preferredEngine } from "../pages/general/prefs";
 import type { PackVersions } from "../pages/engines/confirm";
 import type { Storage } from "../platform/storage";
@@ -81,6 +82,8 @@ export function composeApp(o: AppOptions): App {
     settings.migrate(rules.get());
     trackVersions();
   });
+  // Deleting an AI-written rule in the local rules editor deletes its conversation (R6.8).
+  const stopTeach = watchTeachRecords(storage);
 
   const checkDue = () =>
     subscriptions.checkDue().catch((e: unknown) => {
@@ -103,6 +106,7 @@ export function composeApp(o: AppOptions): App {
     start: checkDue,
     dispose() {
       stopRules();
+      stopTeach();
       rules.dispose();
     },
   };

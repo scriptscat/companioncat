@@ -1,11 +1,22 @@
 import { BUDGET_EXCEEDED, BUDGET_KEY, newBudget, spent, TIME_LIMIT_MS, withBudget } from "./budget";
-import { fromCel, IntRangeError, stringify, toCel } from "./convert";
+import { fromCel, HandleTextError, IntRangeError, stringify, toCel } from "./convert";
 import { compile, type Position, VARIABLES } from "./env";
 import { ExprError, type ValuePath } from "./errors";
 import { scanTemplate } from "./scan";
 
 export { ExprError, type ExprErrorCode, type ValuePath } from "./errors";
-export { position, type Position, type VarName } from "./env";
+export { BASE_FUNCTIONS, type FunctionName, position, type Position, type VarName } from "./env";
+export {
+  describeElement,
+  domHost,
+  ElementHandle,
+  elementHandle,
+  elementOf,
+  isElementHandle,
+  PAGE_FUNCTIONS,
+  type PageFunction,
+  type PageHost,
+} from "./page";
 
 export type Scope = Readonly<Record<string, unknown>>;
 
@@ -64,7 +75,17 @@ async function renderString(s: string, celScope: object, pos: Position): Promise
   if (parts.length === 1 && only?.kind === "expr") return evalExpr(only.source, only.start, celScope, pos);
   let out = "";
   for (const p of parts) {
-    out += p.kind === "text" ? p.text : stringify(await evalExpr(p.source, p.start, celScope, pos));
+    if (p.kind === "text") {
+      out += p.text;
+      continue;
+    }
+    const value = await evalExpr(p.source, p.start, celScope, pos);
+    try {
+      out += stringify(value);
+    } catch (e) {
+      if (!(e instanceof HandleTextError)) throw e;
+      throw new ExprError("runtime", e.message, p.source, p.start, p.start + p.source.length);
+    }
   }
   return out;
 }
