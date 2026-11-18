@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>陪伴猫 E2E 假新闻页</title>
+    <link rel="stylesheet" href="/page.css" />
+    <style>
+      button { all: revert; }
+      .more { display: none; }
+      .open .more { display: block; }
+      aside { border: 1px solid #ccc; padding: 12px; margin: 16px 0; }
+      .comment { margin: 8px 0; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <article id="article">
+        <h1>事件循环为什么让页面变卡</h1>
+        <div class="body" id="body">
+          <p>长任务会占住主线程，渲染要等它跑完才能进行。</p>
+          <p class="more">展开后的正文：把长任务拆成小块，每块之间让出主线程。</p>
+          <button type="button" class="expand" id="expand-body">展开全文</button>
+        </div>
+      </article>
+      <aside id="related">
+        <h3>相关新闻</h3>
+        <div id="related-body">
+          <p>浏览器如何安排渲染和任务。</p>
+          <p class="more">展开后的相关新闻摘要。</p>
+          <button type="button" class="expand" id="expand-related">展开全文</button>
+        </div>
+      </aside>
+      <section id="comments">
+        <h3>评论</h3>
+        <div class="comment">小王：写得清楚。 <button type="button" class="reply-more" id="reply-1">展开 3 条回复</button></div>
+        <div class="comment">小李：我也遇到过。 <button type="button" class="reply-more" id="reply-2">展开 2 条回复</button></div>
+      </section>
+      <p id="news-state">正文展开 0 次；相关新闻展开 0 次；回复展开 0 次</p>
+    </main>
+    <script>
+      const n = { body: 0, related: 0, replies: 0 };
+      const show = () => {
+        document.body.dataset.bodyClicks = String(n.body);
+        document.body.dataset.relatedClicks = String(n.related);
+        document.body.dataset.replyClicks = String(n.replies);
+        document.getElementById("news-state").textContent = "正文展开 " + n.body + " 次；相关新闻展开 " + n.related + " 次；回复展开 " + n.replies + " 次";
+      };
+      show();
+      const expand = (id, key) => {
+        const button = document.getElementById(id);
+        button.addEventListener("click", () => {
+          n[key]++;
+          button.parentElement.classList.add("open");
+          button.hidden = true;
+          show();
+        });
+      };
+      expand("expand-body", "body");
+      expand("expand-related", "related");
+      for (const b of document.querySelectorAll(".reply-more")) b.addEventListener("click", () => { n.replies++; b.hidden = true; show(); });
+    </script>
+  </body>
+</html>

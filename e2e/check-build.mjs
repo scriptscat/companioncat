@@ -2,11 +2,12 @@
 /**
  * Checks dist/companioncat.user.js: the R1.1 header, CSS only for the shadow root (R1.2: no
  * GM_addStyle, nothing written to document.head, px-only compiled Tailwind), nothing that a strict
- * CSP forbids (R13.1: no eval / new Function), and the official packs baked in (R2.2).
+ * CSP forbids (R13.1: no eval / new Function), the official packs baked in (R2.2) and every
+ * src/features/<id>/register.tsx runtime bundled.
  * Usage: node e2e/check-build.mjs [file]   — exit 1 lists every failed check.
  */
 import { execFileSync } from "node:child_process";
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -43,7 +44,7 @@ function stylesheet(code) {
   return null;
 }
 
-export function checkBuild(code, packs) {
+export function checkBuild(code, packs, features = []) {
   const failures = [];
   const fail = (msg) => failures.push(msg);
   const header = parseHeader(code);
@@ -67,6 +68,7 @@ export function checkBuild(code, packs) {
   const body = code.slice(code.indexOf("// ==/UserScript=="));
   if (/GM_addStyle|GM\.addStyle/.test(body)) fail("GM_addStyle found: CSS must only go into the shadow root (R1.2)");
   if (/document\.head/.test(body)) fail("document.head found: nothing may be injected into the page's head (R1.2)");
+  if (/\bdocument\.adoptedStyleSheets/.test(body)) fail("document.adoptedStyleSheets found: CSS must only go into shadow roots (R1.2)");
   if (/\beval\s*\(/.test(body)) fail("eval( found (R13.1 strict CSP)");
   if (/\bnew\s+Function\s*\(/.test(body) || /[^.\w$]Function\s*\(\s*["'`]/.test(body)) fail("new Function / Function(string) found (R13.1 strict CSP)");
 
@@ -85,7 +87,16 @@ export function checkBuild(code, packs) {
       if (prov.name && !body.includes(prov.name)) fail(`official pack ${p.id}: provider ${prov.id} not embedded`);
     }
   }
+  for (const f of features) {
+    if (!new RegExp(`\\bid:\\s*["']${f}["']`).test(body)) fail(`feature runtime ${f} not in the bundle`);
+  }
   return failures;
+}
+
+/** Feature ids registered by src/features/<id>/register.tsx (main.tsx globs them). */
+function featureIds() {
+  const dir = path.join(ROOT, "src/features");
+  return readdirSync(dir).filter((d) => existsSync(path.join(dir, d, "register.tsx")));
 }
 
 function officialPacks() {
@@ -104,7 +115,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     process.exit(1);
   }
   const packs = officialPacks();
-  const failures = checkBuild(code, packs);
+  const features = featureIds();
+  const failures = checkBuild(code, packs, features);
   let commit = "";
   try {
     commit = execFileSync("git", ["-C", path.join(ROOT, "rules"), "rev-parse", "HEAD"], { encoding: "utf8" }).trim();
@@ -112,5 +124,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (commit && !code.includes(commit)) failures.push(`rules commit ${commit} not embedded as the built-in snapshot version`);
   for (const f of failures) console.error(`FAIL ${f}`);
   if (failures.length) process.exit(1);
-  console.log(`ok   ${path.relative(ROOT, FILE)} (${(code.length / 1024).toFixed(0)} KiB): header, shadow-root CSS, no eval, ${packs.length} official packs`);
+  console.log(`ok   ${path.relative(ROOT, FILE)} (${(code.length / 1024).toFixed(0)} KiB): header, shadow-root CSS, no eval, ${packs.length} official packs, features ${features.join(" ")}`);
 }

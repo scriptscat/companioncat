@@ -162,20 +162,62 @@ const clearSelection = () => {
 };
 `;
 
+/**
+ * Body for Page.eval that fills a password (or caller-marked secret) input without focusing it: the
+ * user's password manager injects a chrome-extension:// frame when sctl focuses such a field, which
+ * detaches the debugger. Sets the value with the native setter plus input/change events. Resolves
+ * "set", or "skip" when the field is not a secret one (the caller then uses sctl fill). The value
+ * is only ever embedded here, never in a thrown message.
+ */
+export function inPageFillBody(name, value, secret) {
+  return String.raw`
+const want = ${JSON.stringify(name)};
+const roots = [document, document.querySelector("companion-cat")?.shadowRoot].filter(Boolean);
+const label = (i) =>
+  [i.getAttribute("aria-label"), i.getAttribute("placeholder"), i.labels?.[0]?.textContent, i.id].filter(Boolean).map((x) => x.trim());
+const inputs = roots.flatMap((r) => [...r.querySelectorAll("input")]);
+const el = inputs.find((i) => label(i).includes(want)) ?? inputs.find((i) => label(i).some((x) => x.startsWith(want)));
+if (!el) {
+  if (${secret ? "true" : "false"}) throw new Error("secret field not found: " + want);
+  return "skip";
+}
+if (!${secret ? "true" : "false"} && el.type !== "password") return "skip";
+Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(el, ${JSON.stringify(value)});
+el.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
+el.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
+return "set";`;
+}
+
 export class Page {
   constructor(tab) {
     this.tab = String(tab);
   }
+  /**
+   * Runs `fn` (one page command). The user's password manager can put a chrome-extension:// frame
+   * into the tab, after which the debugger refuses it (PAGE_NOT_AUTOMATABLE); the tab is then
+   * reloaded, which drops the frame, and `fn` runs once more. Counted in `recovered`.
+   */
+  recover(fn) {
+    try {
+      return fn();
+    } catch (e) {
+      if (!/PAGE_NOT_AUTOMATABLE/.test(e.message)) throw e;
+      this.sctlRun(["tabs", "reload", this.tab]);
+      this.sctlRun(["page", "wait", "--load", "load", "--tab", this.tab]);
+      this.recovered = (this.recovered ?? 0) + 1;
+      return fn();
+    }
+  }
   /** Runs `body` (statements, may await, should return JSON) in the page with the prelude in scope. */
   eval(body, timeout = "20s") {
     const expr = `(async () => { ${PRELUDE}\n${body}\n})()`;
-    return sctlJson(["page", "eval", expr, "--tab", this.tab, "--timeout", timeout], { timeout: 90_000 }).value;
+    return this.recover(() => sctlJson(["page", "eval", expr, "--tab", this.tab, "--timeout", timeout], { timeout: 90_000 }).value);
   }
   goto(url) {
-    sctl(["page", "goto", url, "--tab", this.tab, "--wait", "load"]);
+    this.recover(() => sctl(["page", "goto", url, "--tab", this.tab, "--wait", "load"]));
   }
   snapshot() {
-    return sctl(["page", "snapshot", "--tab", this.tab]);
+    return this.recover(() => sctl(["page", "snapshot", "--tab", this.tab]));
   }
   /** The ref of the first snapshot node `- role "name…"` (name prefix match). */
   ref(role, name, { exact = false } = {}) {
@@ -189,11 +231,27 @@ export class Page {
   click(role, name, o) {
     sctl(["page", "click", this.ref(role, name, o), "--tab", this.tab]);
   }
-  fill(role, name, text, o) {
-    sctl(["page", "fill", this.ref(role, name, o), text, "--tab", this.tab]);
+  /** Runs one sctl command for this page's tab (a seam for tests). */
+  sctlRun(args) {
+    return sctl(args);
+  }
+  /**
+   * Types `text` into the field named `name`. Password inputs and fields marked `{ secret: true }` are
+   * set in-page without focus (see inPageFillBody); everything else uses sctl fill.
+   */
+  fill(role, name, text, { secret = false, ...o } = {}) {
+    let done;
+    try {
+      done = this.eval(inPageFillBody(name, text, secret));
+    } catch (e) {
+      // sctl can echo the evaluated expression, which carries the value: report the field only.
+      throw new Error(`could not fill "${name}" in the page: ${(text ? String(e.message).split(text).join("***") : String(e.message)).slice(0, 200)}`);
+    }
+    if (done === "set") return;
+    this.sctlRun(["page", "fill", this.ref(role, name, o), text, "--tab", this.tab]);
   }
   screenshot(file) {
-    sctl(["page", "screenshot", "-f", file, "--tab", this.tab, "--activate"]);
+    this.recover(() => sctl(["page", "screenshot", "-f", file, "--tab", this.tab, "--activate"]));
   }
   cdp(method, params = {}) {
     return sctl(["cdp", "send", method, "--params", JSON.stringify(params), "--tab", this.tab]);

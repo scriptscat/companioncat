@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>陪伴猫 E2E 假视频页</title>
+    <link rel="stylesheet" href="/page.css" />
+    <style>
+      button { all: revert; }
+      .player { position: relative; width: 640px; height: 360px; background: #222; color: #eee; margin: 16px 0; }
+      .player h2 { margin: 0; padding: 12px; font-size: 16px; }
+      .ad-overlay { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.8); padding: 16px; }
+      .ad-overlay .ad-actions { position: absolute; right: 16px; bottom: 16px; display: flex; gap: 8px; }
+      #skip-ad { position: static; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>假视频页</h1>
+      <p>「播放广告」模拟视频开头冒出广告遮罩：先出现遮罩和「了解更多」，约一秒后才出现「跳过广告 5」。</p>
+      <p><button id="start-ad" type="button">播放广告</button></p>
+      <div class="player" id="player"><h2>事件循环（视频）</h2></div>
+      <p id="skip-state">跳过按钮被点了 0 次；了解更多被点了 0 次</p>
+    </main>
+    <script>
+      const clicks = { skip: 0, more: 0 };
+      const player = document.getElementById("player");
+      const state = document.getElementById("skip-state");
+      const show = () => {
+        document.body.dataset.skipClicks = String(clicks.skip);
+        document.body.dataset.moreClicks = String(clicks.more);
+        state.textContent = "跳过按钮被点了 " + clicks.skip + " 次；了解更多被点了 " + clicks.more + " 次";
+      };
+      show();
+      let timers = [];
+      document.getElementById("start-ad").addEventListener("click", () => {
+        timers.forEach(clearTimeout);
+        player.querySelector(".ad-overlay")?.remove();
+        timers = [
+          setTimeout(() => {
+            const overlay = document.createElement("div");
+            overlay.className = "ad-overlay";
+            overlay.innerHTML = '<p>广告 · 某某饮料</p><div class="ad-actions"></div>';
+            const more = document.createElement("button");
+            more.type = "button";
+            more.id = "more-ad";
+            more.textContent = "了解更多";
+            more.addEventListener("click", () => { clicks.more++; show(); });
+            overlay.querySelector(".ad-actions").append(more);
+            player.append(overlay);
+            timers.push(setTimeout(() => {
+              const skip = document.createElement("button");
+              skip.type = "button";
+              skip.id = "skip-ad";
+              skip.textContent = "跳过广告 5";
+              skip.addEventListener("click", () => { clicks.skip++; show(); overlay.remove(); });
+              overlay.querySelector(".ad-actions").append(skip);
+            }, 1000));
+          }, 400),
+        ];
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>陪伴猫 E2E 假练习页</title>
+    <link rel="stylesheet" href="/page.css" />
+    <style>
+      button { all: revert; }
+      .q { margin: 18px 0; padding: 10px 0; border-bottom: 1px solid #ddd; }
+      .q label { display: block; margin: 4px 0; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>JavaScript 练习</h1>
+      <form id="quiz" onsubmit="return false">
+        <div class="q" id="q1">
+          <p>第1题 单选 事件循环每次从队列里取出的是什么？</p>
+          <label><input type="radio" name="q1" value="a" /> 一个任务</label>
+          <label><input type="radio" name="q1" value="b" /> 全部任务</label>
+          <label><input type="radio" name="q1" value="c" /> 一个像素</label>
+        </div>
+        <div class="q" id="q2">
+          <p>第2题 多选 下面哪些是 JavaScript 的基本类型？</p>
+          <label><input type="checkbox" name="q2" value="a" /> string</label>
+          <label><input type="checkbox" name="q2" value="b" /> number</label>
+          <label><input type="checkbox" name="q2" value="c" /> Promise</label>
+        </div>
+        <div class="q" id="q3">
+          <p>第3题 填空 JavaScript 里表示「稍后才有结果」的对象叫做</p>
+          <input type="text" id="blank1" size="24" />
+        </div>
+        <button id="submit" type="button">提交</button>
+        <p id="submit-state">还没提交</p>
+      </form>
+    </main>
+    <script>
+      document.getElementById("submit").addEventListener("click", () => {
+        document.body.dataset.submitClicks = String(Number(document.body.dataset.submitClicks ?? 0) + 1);
+        document.getElementById("submit-state").textContent = "已提交";
+      });
+      document.body.dataset.submitClicks = "0";
+    </script>
+  </body>
+</html>

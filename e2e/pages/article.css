@@ -1,0 +1,6 @@
+/* External on purpose: the strict-CSP variant allows style-src 'self' only. */
+button { all: revert; }
+article p { margin-bottom: 6rem; }
+article pre { margin: 0 0 6rem; padding: 1rem; background: #eee; overflow-x: auto; font-size: 1.4rem; }
+#site-nav ul { margin: 0 0 3rem; padding-left: 2rem; }
+#toolbar { margin: 0 0 3rem; }
